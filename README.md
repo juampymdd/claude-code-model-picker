@@ -1,5 +1,7 @@
 # model-picker
 
+[![test](https://github.com/juampymdd/claude-code-model-picker/actions/workflows/test.yml/badge.svg)](https://github.com/juampymdd/claude-code-model-picker/actions/workflows/test.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Elegí el modelo de Claude, y su versión, desde una banda arriba del prompt de Claude Code.** Un clic y la próxima request sale con otro modelo: sin `/model`, sin diálogos, sin tocar tu modelo por defecto. Y debajo, lo que la API informó: qué modelo respondió, cuánto costó, tokens y cache.
 
 🇬🇧 [Read this in English](README.en.md)

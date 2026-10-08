@@ -1,5 +1,7 @@
 # model-picker
 
+[![test](https://github.com/juampymdd/claude-code-model-picker/actions/workflows/test.yml/badge.svg)](https://github.com/juampymdd/claude-code-model-picker/actions/workflows/test.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 **Pick the Claude model, and its version, from a band above the Claude Code prompt.** One click and the next request goes to another model: no `/model`, no dialogs, your default model untouched. Below it, what the API reported: which model answered, what it cost, tokens and cache.
 
 🇪🇸 [Leer en español](README.md)
