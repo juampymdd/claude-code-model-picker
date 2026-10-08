@@ -262,6 +262,18 @@ git -C ~/.claude/skills/model-picker pull
 
 En los dos casos, abrí una sesión nueva o corré `/reload-plugins`. Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md).
 
+### Actualización automática
+
+Instalado como plugin (opción A), Claude Code puede actualizarlo solo, pero **viene apagado** para marketplaces de terceros como este. Para prenderlo, dentro de una sesión:
+
+1. Escribí `/plugin`.
+2. Entrá en **Marketplaces** y elegí `model-picker`.
+3. Activá **Enable auto-update**.
+
+Desde ahí, en cada sesión Claude Code revisa el marketplace unos minutos después de tu primer mensaje. Si hay versión nueva la descarga y avisa `Plugin updated: model-picker · Run /reload-plugins to apply`; si no corrés ese comando, la versión nueva carga en la próxima sesión.
+
+Clonado (opción B) no hay actualización automática: hay que hacer `git pull`.
+
 ## Desinstalar
 
 Opción A:
