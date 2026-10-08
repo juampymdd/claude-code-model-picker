@@ -151,7 +151,7 @@ Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 
 ## La fila de datos
 
-Debajo de los chips, después de la primera respuesta de la sesión, aparece una fila con lo que la API informó:
+Debajo de los chips hay una fila con lo que la API informó. Antes de la primera respuesta de la sesión dice `costo, tokens y cache: tras la próxima respuesta`; después:
 
 ```
 respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94% · manual
@@ -291,7 +291,7 @@ Es lo esperado: el mod no cambia el modelo de la sesión. Mirá el dato `respond
 El cambio no se aplicó. Confirmá que tu cuenta tiene acceso a ese modelo y que el id en `FAMILIES` es correcto; si sigue pasando, abrí un issue con tu versión de Claude Code.
 
 **No aparece la fila de datos.**
-Aparece después de la primera respuesta de la sesión y se oculta mientras el dropdown está abierto.
+Se oculta mientras el dropdown está abierto. Antes de la primera respuesta de la sesión solo muestra un aviso.
 
 **El costo no coincide con mi factura.**
 Es una estimación a precio de lista. Ver [Limitaciones](#limitaciones).

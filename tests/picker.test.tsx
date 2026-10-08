@@ -119,6 +119,9 @@ test('the stats row reports what the API said of the responses', async ($, on) =
   for (const surface of ['terminal', 'desktop'] as const) {
     await $.command.run(run('auto'))
     const ui = await $.ui.mount({ ...BAND, surface })
+    if (surface === 'terminal') {
+      expect(await ui.find({ type: 'Text', text: /tras la próxima respuesta/ })).toBeDefined()
+    }
 
     await ui.press({ key: 'haiku' })
     await step($, { effort: 'medium', turnId: surface })

@@ -126,7 +126,7 @@ Families: `fable`, `opus`, `sonnet`, `haiku`.
 
 ## The stats row
 
-Under the chips, after the session's first response:
+Under the chips. Before the session's first response it reads `costo, tokens y cache: tras la próxima respuesta` ("cost, tokens and cache: after the next response"); then:
 
 ```
 respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94% · manual
@@ -266,7 +266,7 @@ Expected: the mod does not change the session's model. Check `respondió …` in
 The switch did not take effect. Confirm your account has access to that model and that its id in `FAMILIES` is right; if it persists, open an issue with your Claude Code version.
 
 **The stats row is missing.**
-It appears after the session's first response and hides while the dropdown is open.
+It hides while the dropdown is open. Before the session's first response it only shows a notice.
 
 **The cost does not match my bill.**
 It is an estimate at list price. See [Limitations](#limitations).

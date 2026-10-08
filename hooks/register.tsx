@@ -15,6 +15,8 @@ const HEAD = '▌ MODELO '
 const NOTE_COLUMNS = 96
 const NAME_COLUMNS = 70
 
+const WAITING = 'costo, tokens y cache: tras la próxima respuesta'
+
 const choice = atom({ plugin: 'model-picker', key: 'choice' } as const, 'auto')
 // The family whose version dropdown is open; '' while none is.
 const open = atom({ plugin: 'model-picker', key: 'open' } as const, '')
@@ -100,7 +102,9 @@ export const register: Register = on => {
     const columns = e.props.bodyColumns
     const hasNames = columns >= NAME_COLUMNS
     const opened = FAMILIES.find(f => f.choice === shown)
-    const line = statsLine(await read($, stats), override !== undefined, columns - 2)
+    const seen = await read($, stats)
+    // Before the session's first response there is nothing to report yet.
+    const line = seen === null ? WAITING : statsLine(seen, override !== undefined, columns - 2)
 
     const chips = FAMILIES.map(family => {
       const isActive = picked?.family === family
