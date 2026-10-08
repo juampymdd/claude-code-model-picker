@@ -34,6 +34,7 @@ Con el dropdown de versiones abierto:
 - [Desinstalar](#desinstalar)
 - [Problemas frecuentes](#problemas-frecuentes)
 - [Desarrollo](#desarrollo)
+- [Licencia](#licencia)
 
 ## Qué hace
 
@@ -289,3 +290,7 @@ tests/
 Al cargar el mod, Claude Code escribe los tipos de su API en `.claude-plugin/types/` (ignorada por git); con eso `tsc -p .` chequea los tipos.
 
 Issues y pull requests son bienvenidos.
+
+## Licencia
+
+[MIT](LICENSE) © 2026 Juan Pablo Maddoni

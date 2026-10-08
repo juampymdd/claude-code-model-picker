@@ -3,5 +3,6 @@
   "version": "0.1.0",
   "description": "A band above the prompt to pick which model, and which version of it, runs the next requests.",
   "author": { "name": "Juan Pablo Maddoni" },
+  "license": "MIT",
   "types": "./types/index.d.ts"
 }
