@@ -31,6 +31,7 @@ With the version dropdown open:
 - **Starts on your real model**: a new session highlights the model the session already runs.
 - **Instant switch**: the choice applies to the next request.
 - **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
+- **Stats pane** with charts of the session's cost, models, tools and pace.
 - **`/modelo` command** to do the same from the keyboard.
 - **Updates itself**: once a day it looks for a new version and installs it. It can be [turned off](#turning-it-off).
 
@@ -122,6 +123,7 @@ claude plugin list
 | `/modelo sonnet` | Switches to the newest Sonnet |
 | `/modelo opus 4.8` | Switches to that exact version |
 | `/modelo auto` | Goes back to the session's model |
+| `/modelo stats` | Opens or closes the [stats pane](#the-stats-pane) |
 
 Families: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -147,6 +149,86 @@ In a narrow terminal the row keeps its leftmost parts and drops the last ones. I
 
 **Costs are estimates**: the tokens the API reported times the list price. On a subscription, read them as a measure of usage, not as your bill. See [Limitations](#limitations).
 
+## The stats pane
+
+A pane with charts of the whole session. Open and close it with the **`▦ stats`** button at the end of the band, or with `/modelo stats`. On wide terminals (110 columns or more, fullscreen) it docks on the right; otherwise it shows above the prompt. `Esc` closes it too when it has the focus.
+
+```
+sesión 1h12m · ~$0.42 · 31 turnos · contexto 38%
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo
+```
+
+Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `4` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
+
+### 1 · Costo (cost)
+
+What each turn cost: each message of yours with every request it triggered.
+
+```
+COSTO POR TURNO · últimos 28 de 31 · máx $0.21
+      █
+  ▂   █    ▅
+▁▃█▂▁▂█▃▁▁▂█▂▁▁▃▂▁▁▂▃▁▂▅▂▁▂▃
+   #  costo   ▒ entrada █ salida    tok          cache
+  31  $0.084  ▒▒▒▒▒▒██████████      48k→1.2k     94%
+  30  $0.012  ▒▒█                   12k→300      88%
+total ~$0.42 · 1.9M→41k tok · cache 91% · subagentes $0.05
+```
+
+- On top, a column chart of the latest turns' cost.
+- The table lists the 50 most recent turns, newest first. The bar is the turn's cost: `▒` what the prompt cost (`entrada` = input) and `█` what the response cost (`salida` = output), in the color of the model that answered.
+- `tok` is the turn's tokens (whole prompt, cache included → response) and `cache` the share of the prompt served from cache.
+- In narrow panes the table drops `tok` first and then `cache`.
+
+### 2 · Modelos (models)
+
+How the session's cost splits between models, subagents included.
+
+```
+USO POR MODELO
+◆ Opus 5.5    ████████████▌   $0.31   74%  1.4M→30k  22 req
+● Haiku 5.5   ██▏             $0.05   12%  410k→9k   14 req
+subagentes: $0.05 (12% del total)
+```
+
+### 3 · Tools
+
+Which tools ran, from every loop: how many times, how many failed, total and average time.
+
+```
+TOOLS · 87 llamadas · 3 errores · 2m41s
+Bash          ██████████▏   42  2 err   1m12s   1.7s
+Read          ██████▎       26  –          4s  150ms
+```
+
+A call counts as an error if the tool returned an error or another plugin refused it. The time includes any permission prompts the tool raised.
+
+### 4 · Ritmo (pace)
+
+How long Claude worked and at what rate.
+
+```
+RITMO · activo 18m de 1h12m (25%) · 4.2 pasos/turno · prom 35s
+duración   ▁▂▁▅▃▁▁█▂▁▃▂▁▁▄▂   máx 3m12s
+pasos      ▁▁▂▇▃▁▁█▂▁▂▂▁▁▃▂   máx 23
+actividad  ··▁▃█▅···▂▃▁··▂▅   16 tramos de 4m30s
+  31  12s     3 pasos  respuesta
+  30  3m12s   23 pasos abortado
+```
+
+- `duración` (duration) and `pasos` (steps) are per-turn charts: how long each took and how many requests the main loop made.
+- `actividad` (activity) spreads the steps over the session's time; a `·` is a stretch with no activity.
+- Each turn ends as `respuesta` (answered), `abortado` (aborted), `rechazo` (refused) or `error`, and reads `en curso` (running) while it runs.
+
+### Good to know
+
+- The pane counts what the mod has seen since it loaded: it knows nothing of what happened before. A `/clear` resets it.
+- Costs are list-price estimates (see [Limitations](#limitations)). When Claude Code reports a cost of its own, the header shows it beside it as `/cost`.
+- A turn's duration and a tool's time are wall-clock: they include waiting on permissions.
+- A subagent still running after your turn ends adds its cost to whichever turn is open then. The per-model and session totals are exact regardless.
+- The header's session time updates when new data arrives; it does not tick by itself.
+- The latest 200 turns and up to 40 tool names are kept (the rest count as `otros`, "others"); the totals always include everything.
+
 ## Models and prices
 
 Anthropic API list prices in US dollars per million tokens (MTok), as of October 6, 2026.
@@ -170,14 +252,17 @@ Your account needs access to the model you pick. Prices change: the current ones
 
 ## How it works
 
-The mod registers four hooks:
+The mod registers these hooks:
 
 | Hook | What for |
 | --- | --- |
 | `session.start` | Registers the `/modelo` command |
 | `command.run` | Answers `/modelo` |
 | `turn.step` | Before each request of the main loop, sets the picked model; after it, tallies what the API reported |
-| `ui.render` | Draws the band above the prompt |
+| `turn.start`, `turn.complete` | Open and close each turn in the stats pane's history |
+| `tool.call` | Counts and times each tool without changing the call |
+| `session.end` | Resets the numbers on a `/clear` |
+| `ui.render` | Draws the band above the prompt and the stats pane |
 
 Also, at `session.start` it starts the check for a new version in the background (see [Update](#update)).
 
@@ -195,7 +280,7 @@ The switch is **per request**: the mod rewrites the `model` field of each call t
   - It counts only the requests that went through the mod since it loaded, and a response from a model missing from the list adds $0.
 - **Models and prices are written in the code.** A new model has to be added by hand (see below).
 - **Switching models mid-conversation makes that request cost more**: the conversation's cache is per model, so the new model reads the whole history again.
-- **In narrow terminals** the band compacts: under 96 columns it hides the note on the right, under 70 it leaves only the glyph of the unpicked models, and the stats row drops its last parts.
+- **In narrow terminals** the band compacts: under 106 columns it hides the note on the right, under 70 it leaves only the glyph of the unpicked models, and the stats row drops its last parts.
 - **The interface is in Spanish.**
 
 ## Add or change models
@@ -320,12 +405,18 @@ hooks/
   register.tsx       the hooks and the band's drawing
   models.ts          families, versions, ids and prices
   stats.ts           cost, tokens and the stats row
+  charts.ts          charts made of block characters
+  history.ts         the history of turns, models and tools
+  pane.tsx           the stats pane's drawing
   update.ts          the self-update
 types/
   index.d.ts         the contract of the state the mod keeps
 tests/
   picker.test.tsx    the band, the dropdown and the command
   stats.test.ts      costs and formatting
+  charts.test.ts     the charts
+  history.test.ts    the history
+  pane.test.tsx      the stats pane
   update.test.ts     the self-update
 ```
 

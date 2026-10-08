@@ -1,7 +1,7 @@
 {
   "name": "model-picker",
-  "version": "0.3.0",
-  "description": "A band above the prompt to pick which model, and which version of it, runs the next requests, with cost, tokens and cache stats.",
+  "version": "0.4.0",
+  "description": "A band above the prompt to pick which model, and which version of it, runs the next requests, with cost, tokens and cache stats and a charts pane for the whole session.",
   "author": {
     "name": "Juan Pablo Maddoni"
   },

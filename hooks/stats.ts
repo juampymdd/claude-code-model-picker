@@ -27,21 +27,27 @@ const EMPTY: Stats = {
   sessionCost: 0,
 }
 
-/** A response's cost in dollars at list price; 0 for a model with none listed. */
-export const costOf = (usage: Usage): number => {
+/** What a response cost in dollars at list price, by kind of token; all 0 for a model with none listed. */
+export const costParts = (usage: Usage): { input: number; output: number; cacheRead: number; cacheWrite: number } => {
   const version = pickOfId(usage.model)?.version
-  if (version === undefined) return 0
+  if (version === undefined) return { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
 
   const [input, output] = version.price
   const cacheRead = version.cacheRead ?? input * CACHE_READ
 
-  return (
-    (usage.input_tokens * input +
-      usage.output_tokens * output +
-      usage.cache_read_input_tokens * cacheRead +
-      usage.cache_creation_input_tokens * input * CACHE_WRITE) /
-    MILLION
-  )
+  return {
+    input: (usage.input_tokens * input) / MILLION,
+    output: (usage.output_tokens * output) / MILLION,
+    cacheRead: (usage.cache_read_input_tokens * cacheRead) / MILLION,
+    cacheWrite: (usage.cache_creation_input_tokens * input * CACHE_WRITE) / MILLION,
+  }
+}
+
+/** A response's cost in dollars at list price; 0 for a model with none listed. */
+export const costOf = (usage: Usage): number => {
+  const parts = costParts(usage)
+
+  return parts.input + parts.output + parts.cacheRead + parts.cacheWrite
 }
 
 /**

@@ -1,8 +1,10 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
+import { addStep, addTool, closeTurn, EMPTY, openTurn } from './history'
 import { FAMILIES, latest, pickOfId, pickOfName, pickOfText } from './models'
 import type { Pick } from './models'
+import { drawPane, PANE } from './pane'
 import { priceLabel, statsLine, tally } from './stats'
 import { selfUpdate } from './update'
 import type { Host } from './update'
@@ -14,7 +16,7 @@ const INK = '#18181B'
 const HEAD = '▌ MODELO '
 
 // Below these widths the band drops the note, then the unpicked names.
-const NOTE_COLUMNS = 96
+const NOTE_COLUMNS = 106
 const NAME_COLUMNS = 70
 
 const WAITING = 'costo, tokens y cache: tras la próxima respuesta'
@@ -24,6 +26,38 @@ const choice = atom({ plugin: 'model-picker', key: 'choice' } as const, 'auto')
 const open = atom({ plugin: 'model-picker', key: 'open' } as const, '')
 // What the API reported of the session's responses; null before the first.
 const stats = atom({ plugin: 'model-picker', key: 'stats' } as const, null)
+// What the stats pane charts: the session's turns, models and tools, and its tab.
+const history = atom({ plugin: 'model-picker', key: 'history' } as const, EMPTY)
+const tabOf = atom({ plugin: 'model-picker', key: 'tab' } as const, 'costo')
+
+const OPEN = { id: PANE, title: 'Estadísticas', focus: true, closeOnEscape: true, columns: 64 } as const
+
+// Shows the stats pane, or closes it when it is up; says whether it is up now.
+const togglePane = async ($: EngineInterface): Promise<boolean> => {
+  const mine = (await $.ui.panes()).find(pane => pane.id === PANE)
+  if (mine?.isShown) {
+    await $.ui.close({ id: PANE })
+
+    return false
+  }
+
+  // One that is open but not drawn (too narrow, or behind another tab) is reopened so it surfaces.
+  if (mine !== undefined) await $.ui.close({ id: PANE })
+  await $.ui.open(OPEN)
+
+  return true
+}
+
+// What the pane shows of the session beyond its own history; nothing where it cannot be read.
+const sessionUsage = async ($: EngineInterface) => {
+  try {
+    const usage = await $.session.usage()
+
+    return { startedAt: usage.startedAt, percent: usage.context.percent, usd: usage.cost?.usd }
+  } catch {
+    return undefined
+  }
+}
 
 // The session's own model as `/model` names it (`Opus 5.5`, `claude-opus-5-5`).
 const pickOfSession = async ($: EngineInterface): Promise<Pick | undefined> => {
@@ -64,7 +98,7 @@ export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: COMMAND,
-      description: `Elige el modelo de las próximas requests (${NAMES}) y su versión: /${COMMAND} opus 4.8`,
+      description: `Elige el modelo de las próximas requests (${NAMES}) y su versión: /${COMMAND} opus 4.8; /${COMMAND} stats abre las estadísticas`,
     })
 
     // Left running: the session does not wait on the network to start.
@@ -80,6 +114,12 @@ export const register: Register = (on, options) => {
       const own = await pickOfSession($)
 
       return { text: `Modelo: ${own ? `${own.family.label} ${own.version.version}` : 'desconocido'}. Uso: /${COMMAND} ${NAMES} [versión]` }
+    }
+
+    if (text === 'stats') {
+      const isUp = await togglePane($)
+
+      return { text: `Estadísticas: ${isUp ? 'abiertas' : 'cerradas'}` }
     }
 
     if (text === 'auto') {
@@ -107,7 +147,88 @@ export const register: Register = (on, options) => {
     const usage = response.usage
     if (usage !== null) await update($, stats, was => tally(was, e, usage, isMain))
 
+    // The pane's record is a side note: it must never fail the request.
+    try {
+      const now = await $.clock.now()
+      await update($, history, was => addStep(was, { turnId: e.turnId, isMain }, usage, now))
+    } catch {
+      // the request already answered; its chart just misses a point
+    }
+
     return response
+  })
+
+  on('turn.start', async ($, e, next) => {
+    try {
+      const now = await $.clock.now()
+      await update($, history, was => openTurn(was, e.turnId, now))
+    } catch {
+      // the turn runs all the same
+    }
+
+    return next(e)
+  })
+
+  on('turn.complete', async ($, e, next) => {
+    const done = await next(e)
+
+    if (e.agentId === undefined) {
+      try {
+        await update($, history, was => closeTurn(was, { turnId: e.turnId, durationMs: e.durationMs, reason: e.reason }))
+      } catch {
+        // the answer is already out
+      }
+    }
+
+    return done
+  })
+
+  // Every tool call of every loop is timed and counted, and none is ever changed.
+  on('tool.call', async ($, e, next) => {
+    const started = await $.clock.now()
+    let isError = false
+
+    try {
+      const ran = await next(e)
+      isError = ran.deny !== undefined || ran.isError === true
+
+      return ran
+    } catch (error) {
+      isError = true
+
+      throw error
+    } finally {
+      try {
+        const ms = (await $.clock.now()) - started
+        await update($, history, was => addTool(was, { name: e.tool, ms, isError }))
+      } catch {
+        // the call is over; only its count is lost
+      }
+    }
+  }).catch(($, e, next) => next(e))
+
+  // A /clear starts the session's numbers over.
+  on('session.end', async ($, e, next) => {
+    if (e.reason === 'clear') {
+      await update($, history, () => EMPTY)
+      await update($, stats, () => null)
+    }
+
+    return next(e)
+  })
+
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    const data = await read($, history)
+    const current = await read($, tabOf)
+    const now = await $.clock.now()
+    const usage = await sessionUsage($)
+
+    return drawPane(
+      h,
+      $.ui.resolve(e),
+      { columns: e.props.bodyColumns, tab: current, history: data, now, usage },
+      next => update($, tabOf, () => next),
+    )
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -167,6 +288,9 @@ export const register: Register = (on, options) => {
               )}
             </Button>
           ))}
+          <Button key="stats" plain dimColor onPress={() => togglePane($)}>
+            <Text>{hasNames ? ' ▦ stats ' : ' ▦ '}</Text>
+          </Button>
           {columns >= NOTE_COLUMNS && picked !== undefined && (
             <Text color={picked.family.color} italic>
               {'  '}

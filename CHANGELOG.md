@@ -2,6 +2,19 @@
 
 Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones, [SemVer](https://semver.org/lang/es/).
 
+## [0.4.0] - 2026-10-08
+
+### Agregado
+
+- Panel de estadísticas de la sesión, con gráficos hechos con caracteres de bloque: costo y tokens por turno, uso por modelo, herramientas (cantidad, errores y tiempo) y ritmo (duración, pasos y actividad).
+- Botón `▦ stats` al final de la banda y subcomando `/modelo stats` para abrir y cerrar el panel; pestañas con clic o con las teclas `1` a `4`.
+- Un `/clear` reinicia los números de la sesión.
+
+### Cambiado
+
+- La nota de la derecha de la banda necesita 106 columnas en vez de 96, para dejar lugar al botón.
+- `costOf` se calcula sobre el nuevo `costParts`, que separa el costo por tipo de token.
+
 ## [0.3.0] - 2026-10-08
 
 ### Agregado
@@ -35,6 +48,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Comando `/modelo`.
 - Licencia MIT.
 
+[0.4.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/juampymdd/claude-code-model-picker/releases/tag/v0.1.0

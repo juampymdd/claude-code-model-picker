@@ -23,6 +23,8 @@ const run = (args: string) =>
     presentation: { isFullscreen: true, columns: 80 },
   }) as const
 
+const SURFACES = ['terminal', 'desktop'] as const
+
 const STEP = { turnId: 't', index: 0, model: 'session-model', messageCount: 1 }
 const DONE = { answer: '', toolUses: [], stopReason: null, usage: null } as const
 
@@ -157,4 +159,44 @@ test('the command picks a family and a version, and refuses an unknown name', as
   expect((await $.command.run(run('gpt'))).text).toMatch(/desconocido/)
   expect((await $.command.run(run('opus 9'))).text).toMatch(/desconocido/)
   expect(sent).toEqual(['claude-haiku-4-5', 'session-model'])
+})
+
+test('the band has a stats button that shrinks to its glyph, and /modelo stats toggles the pane', async ($, on) => {
+  stubSession(on, 'claude-opus-5-5')
+  const panes: { id: string; title: string; isShown: boolean; isFocused: boolean; isPlaced: boolean }[] = []
+  const opened: string[] = []
+  on('ui.panes', () => ({ value: panes }))
+  on('ui.open', (_$, e) => {
+    opened.push(e.id)
+    panes.splice(0, panes.length, { id: e.id, title: '', isShown: true, isFocused: true, isPlaced: true })
+
+    return { value: { isPlaced: true } }
+  })
+  on('ui.close', () => {
+    panes.splice(0, panes.length)
+
+    return { value: undefined }
+  })
+
+  for (const surface of SURFACES) {
+    const wide = await $.ui.mount({ ...BAND, surface })
+    expect(await wide.find({ type: 'Text', text: /▦ stats/ })).toBeDefined()
+    await wide.unmount()
+
+    const narrow = await $.ui.mount({ ...BAND, props: { ...BAND.props, bodyColumns: 50 }, surface })
+    expect(await narrow.find({ type: 'Text', text: /▦ stats/ })).toBeUndefined()
+    expect(await narrow.find({ key: 'stats' })).toBeDefined()
+    await narrow.unmount()
+  }
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await ui.press({ key: 'stats' })
+  expect(opened).toEqual(['model-picker-stats'])
+
+  expect((await $.command.run(run('stats'))).text).toBe('Estadísticas: cerradas')
+  expect((await $.command.run(run('stats'))).text).toBe('Estadísticas: abiertas')
+  expect(opened).toEqual(['model-picker-stats', 'model-picker-stats'])
+  expect((await $.command.run(run(''))).text).toMatch(/^Modelo: Opus 5\.5/)
+
+  await ui.unmount()
 })

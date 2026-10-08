@@ -30,6 +30,7 @@ Con el dropdown de versiones abierto:
 - [Comprobar que quedó instalado](#comprobar-que-quedó-instalado)
 - [Uso](#uso)
 - [La fila de datos](#la-fila-de-datos)
+- [El panel de estadísticas](#el-panel-de-estadísticas)
 - [Modelos y precios](#modelos-y-precios)
 - [Cómo funciona](#cómo-funciona)
 - [Limitaciones](#limitaciones)
@@ -47,6 +48,7 @@ Con el dropdown de versiones abierto:
 - **Arranca en tu modelo real**: al abrir una sesión marca el modelo que la sesión ya usa.
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
 - **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
+- **Panel de estadísticas** con gráficos de costo, modelos, herramientas y ritmo de la sesión.
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
 - **Se actualiza solo**: una vez por día busca una versión nueva y la instala. Se puede [apagar](#apagarlo).
 
@@ -120,7 +122,7 @@ Tiene que aparecer `model-picker` con estado `enabled` o `loaded`:
 
 ```
 ❯ model-picker@model-picker
-  Version: 0.3.0
+  Version: 0.4.0
   Scope: user
   Status: ✔ enabled
 ```
@@ -147,6 +149,7 @@ Después, en una sesión nueva, escribí `/modelo`. Si responde `Modelo: Opus 5.
 | `/modelo sonnet` | Cambia a la versión más nueva de Sonnet |
 | `/modelo opus 4.8` | Cambia a esa versión puntual |
 | `/modelo auto` | Vuelve al modelo de la sesión |
+| `/modelo stats` | Abre o cierra el [panel de estadísticas](#el-panel-de-estadísticas) |
 
 Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -172,6 +175,86 @@ Si la terminal es angosta, la fila deja primero los datos de la izquierda y desc
 
 **Los costos son una estimación**: tokens informados por la API multiplicados por el precio de lista. Si usás una suscripción en vez de pagar por token, tomalos como referencia de consumo, no como tu factura. Ver [Limitaciones](#limitaciones).
 
+## El panel de estadísticas
+
+Un panel con gráficos de toda la sesión. Se abre y se cierra con el botón **`▦ stats`** del final de la banda, o con `/modelo stats`. En terminales anchas (110 columnas o más, en pantalla completa) se acopla a la derecha; si no, se muestra arriba del prompt. Se cierra también con `Esc` cuando tiene el foco.
+
+```
+sesión 1h12m · ~$0.42 · 31 turnos · contexto 38%
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo
+```
+
+Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `4`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
+
+### 1 · Costo
+
+Cuánto costó cada turno, es decir, cada mensaje tuyo con todas las requests que disparó.
+
+```
+COSTO POR TURNO · últimos 28 de 31 · máx $0.21
+      █
+  ▂   █    ▅
+▁▃█▂▁▂█▃▁▁▂█▂▁▁▃▂▁▁▂▃▁▂▅▂▁▂▃
+   #  costo   ▒ entrada █ salida    tok          cache
+  31  $0.084  ▒▒▒▒▒▒██████████      48k→1.2k     94%
+  30  $0.012  ▒▒█                   12k→300      88%
+total ~$0.42 · 1.9M→41k tok · cache 91% · subagentes $0.05
+```
+
+- Arriba, un gráfico de columnas con el costo de los últimos turnos.
+- La tabla lista los 50 turnos más recientes, el último primero. La barra es el costo del turno: `▒` lo que costó el prompt y `█` lo que costó la respuesta, con el color del modelo que respondió.
+- `tok` son los tokens del turno (prompt completo, cache incluida → respuesta) y `cache` la parte del prompt que salió de la cache.
+- En paneles angostos la tabla pierde primero `tok` y después `cache`.
+
+### 2 · Modelos
+
+Cómo se reparte el costo de la sesión entre modelos, subagentes incluidos.
+
+```
+USO POR MODELO
+◆ Opus 5.5    ████████████▌   $0.31   74%  1.4M→30k  22 req
+● Haiku 5.5   ██▏             $0.05   12%  410k→9k   14 req
+subagentes: $0.05 (12% del total)
+```
+
+### 3 · Tools
+
+Qué herramientas se usaron, de todos los loops: cuántas veces, cuántas fallaron, tiempo total y promedio.
+
+```
+TOOLS · 87 llamadas · 3 errores · 2m41s
+Bash          ██████████▏   42  2 err   1m12s   1.7s
+Read          ██████▎       26  –          4s  150ms
+```
+
+Una llamada cuenta como error si la herramienta devolvió error o si otro plugin la rechazó. El tiempo incluye las confirmaciones de permisos que haya pedido la herramienta.
+
+### 4 · Ritmo
+
+Cuánto tiempo trabajó Claude y a qué ritmo.
+
+```
+RITMO · activo 18m de 1h12m (25%) · 4.2 pasos/turno · prom 35s
+duración   ▁▂▁▅▃▁▁█▂▁▃▂▁▁▄▂   máx 3m12s
+pasos      ▁▁▂▇▃▁▁█▂▁▂▂▁▁▃▂   máx 23
+actividad  ··▁▃█▅···▂▃▁··▂▅   16 tramos de 4m30s
+  31  12s     3 pasos  respuesta
+  30  3m12s   23 pasos abortado
+```
+
+- `duración` y `pasos` son un gráfico por turno (duración y cantidad de requests del loop principal).
+- `actividad` reparte los pasos a lo largo del tiempo de la sesión; un `·` es un tramo sin actividad.
+- Cada turno termina en `respuesta`, `abortado`, `rechazo` o `error`, y mientras corre dice `en curso`.
+
+### Cosas a saber
+
+- El panel cuenta lo que ve el mod desde que cargó: no conoce lo que pasó antes. Un `/clear` lo reinicia.
+- Los costos son estimaciones a precio de lista (ver [Limitaciones](#limitaciones)). Si Claude Code informa un costo propio, el encabezado lo muestra al lado como `/cost`.
+- La duración de un turno y el tiempo de una tool son tiempo real: incluyen esperas por permisos.
+- Un subagente que sigue corriendo después de que termina tu turno suma su costo al turno que esté abierto en ese momento. Los totales por modelo y de sesión son exactos igual.
+- El tiempo de sesión del encabezado se actualiza cuando llega un dato nuevo, no corre solo.
+- Se guardan los últimos 200 turnos y hasta 40 nombres de herramientas (el resto se cuenta como `otros`); los totales siempre incluyen todo.
+
 ## Modelos y precios
 
 Precios de lista de la API de Anthropic, en dólares por millón de tokens (MTok), al 6 de octubre de 2026.
@@ -195,14 +278,17 @@ Tu cuenta tiene que tener acceso al modelo que elijas. Los precios pueden cambia
 
 ## Cómo funciona
 
-El mod registra cuatro hooks:
+El mod registra estos hooks:
 
 | Hook | Para qué |
 | --- | --- |
 | `session.start` | Registra el comando `/modelo` |
 | `command.run` | Responde a `/modelo` |
 | `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, suma lo que la API informó de la respuesta |
-| `ui.render` | Dibuja la banda arriba del prompt |
+| `turn.start`, `turn.complete` | Abren y cierran cada turno en el historial del panel de estadísticas |
+| `tool.call` | Cuenta y cronometra cada herramienta sin modificar la llamada |
+| `session.end` | Reinicia los números con un `/clear` |
+| `ui.render` | Dibuja la banda arriba del prompt y el panel de estadísticas |
 
 Además, en `session.start` lanza en segundo plano la búsqueda de versión nueva (ver [Actualizar](#actualizar)).
 
@@ -220,7 +306,7 @@ El cambio se hace **por request**: el mod reescribe el campo `model` de cada lla
   - Cuenta solo las requests que pasaron por el mod desde que cargó, y una respuesta de un modelo que no está en la lista suma $0.
 - **Los modelos y precios están escritos en el código.** Cuando sale un modelo nuevo hay que agregarlo (ver abajo).
 - **Cambiar de modelo a mitad de una conversación cuesta más en esa request**: la cache de la conversación es por modelo, así que el modelo nuevo relee todo el historial.
-- **En terminales angostas** la banda se compacta: con menos de 96 columnas oculta la nota de la derecha, con menos de 70 deja solo el glifo de los modelos no elegidos, y la fila de datos descarta sus últimos datos.
+- **En terminales angostas** la banda se compacta: con menos de 106 columnas oculta la nota de la derecha, con menos de 70 deja solo el glifo de los modelos no elegidos, y la fila de datos descarta sus últimos datos.
 - **La interfaz está en español.**
 
 ## Agregar o cambiar modelos
@@ -345,12 +431,18 @@ hooks/
   register.tsx       los hooks y el dibujo de la banda
   models.ts          familias, versiones, ids y precios
   stats.ts           costo, tokens y la fila de datos
+  charts.ts          gráficos hechos con caracteres de bloque
+  history.ts         el historial de turnos, modelos y tools
+  pane.tsx           el dibujo del panel de estadísticas
   update.ts          la actualización automática
 types/
   index.d.ts         contrato del estado que guarda el mod
 tests/
   picker.test.tsx    la banda, el dropdown y el comando
   stats.test.ts      costos y formato
+  charts.test.ts     los gráficos
+  history.test.ts    el historial
+  pane.test.tsx      el panel de estadísticas
   update.test.ts     la actualización automática
 ```
 
