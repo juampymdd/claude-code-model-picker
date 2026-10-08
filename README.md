@@ -1,22 +1,23 @@
 # model-picker
 
-**Elegí el modelo de Claude, y su versión, desde una banda arriba del prompt de Claude Code.** Un clic y la próxima request sale con otro modelo: sin `/model`, sin diálogos, sin tocar tu modelo por defecto.
+**Elegí el modelo de Claude, y su versión, desde una banda arriba del prompt de Claude Code.** Un clic y la próxima request sale con otro modelo: sin `/model`, sin diálogos, sin tocar tu modelo por defecto. Y debajo, lo que la API informó: qué modelo respondió, cuánto costó, tokens y cache.
 
-> *A Claude Code mod: a band above the prompt to pick which Claude model and version the next requests go to. UI in Spanish.*
+🇬🇧 [Read this in English](README.en.md)
 
 ```
-▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5    razonamiento profundo · respondió Opus 5.5
+▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5    razonamiento profundo
+  respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94%
 ```
 
 Con el dropdown de versiones abierto:
 
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▴ ▌  ▲ Sonnet 5.5   ● Haiku 5.5
-                          ● Opus 5.5
-                          ○ Opus 5
-                          ○ Opus 4.8
-                          ○ Opus 4.7
-                          ○ Opus 4.6
+                          ● Opus 5.5 $4/$20 por MTok
+                          ○ Opus 5 $5/$25 por MTok
+                          ○ Opus 4.8 $5/$25 por MTok
+                          ○ Opus 4.7 $5/$25 por MTok
+                          ○ Opus 4.6 $5/$25 por MTok
 ```
 
 ## Contenido
@@ -26,7 +27,8 @@ Con el dropdown de versiones abierto:
 - [Instalación](#instalación)
 - [Comprobar que quedó instalado](#comprobar-que-quedó-instalado)
 - [Uso](#uso)
-- [Modelos incluidos](#modelos-incluidos)
+- [La fila de datos](#la-fila-de-datos)
+- [Modelos y precios](#modelos-y-precios)
 - [Cómo funciona](#cómo-funciona)
 - [Limitaciones](#limitaciones)
 - [Agregar o cambiar modelos](#agregar-o-cambiar-modelos)
@@ -39,10 +41,10 @@ Con el dropdown de versiones abierto:
 ## Qué hace
 
 - **Un chip por familia** (Fable, Opus, Sonnet, Haiku), cada uno con su color. El activo va relleno.
-- **Dropdown de versiones**: un clic en el chip activo lista todas las versiones de esa familia.
+- **Dropdown de versiones con precio**: un clic en el chip activo lista todas las versiones de esa familia y su precio de lista.
 - **Arranca en tu modelo real**: al abrir una sesión marca el modelo que la sesión ya usa.
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
-- **Comprobable**: la nota de la derecha muestra el modelo que la API informó en la última respuesta (`respondió …`).
+- **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
 
 ## Requisitos
@@ -115,7 +117,7 @@ Tiene que aparecer `model-picker` con estado `enabled` o `loaded`:
 
 ```
 ❯ model-picker@model-picker
-  Version: 0.1.0
+  Version: 0.2.0
   Scope: user
   Status: ✔ enabled
 ```
@@ -129,7 +131,7 @@ Después, en una sesión nueva, escribí `/modelo`. Si responde `Modelo: Opus 5.
 | Acción | Resultado |
 | --- | --- |
 | Clic en un chip de otra familia | Cambia a la versión más nueva de esa familia |
-| Clic en el chip activo (`▾`) | Abre la lista de versiones debajo del chip |
+| Clic en el chip activo (`▾`) | Abre la lista de versiones, con su precio, debajo del chip |
 | Clic en una versión de la lista | Cambia a esa versión y cierra la lista (`●` marca la actual) |
 | Clic otra vez en el chip activo (`▴`) | Cierra la lista sin cambiar nada |
 | Elegir el modelo que ya usa la sesión | Quita la elección y vuelve a seguir a la sesión |
@@ -145,20 +147,48 @@ Después, en una sesión nueva, escribí `/modelo`. Si responde `Modelo: Opus 5.
 
 Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 
-### Comprobar con qué modelo se respondió
+## La fila de datos
 
-Después de cada respuesta, la nota de la derecha de la banda dice `respondió <modelo>`: es el id que la API informó para esa respuesta. La nota se muestra cuando la terminal tiene 96 columnas o más.
+Debajo de los chips, después de la primera respuesta de la sesión, aparece una fila con lo que la API informó:
 
-## Modelos incluidos
+```
+respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94% · manual
+```
 
-| Familia | Versiones |
+| Dato | Qué es |
 | --- | --- |
-| ✦ Fable | 5.1 · 5 |
-| ◆ Opus | 5.5 · 5 · 4.8 · 4.7 · 4.6 |
-| ▲ Sonnet | 5.5 · 5 · 4.6 |
-| ● Haiku | 5.5 · 4.5 |
+| `respondió Opus 5.5` | El modelo que la API dice que respondió la última request. Sirve para comprobar que el cambio se aplicó |
+| `sesión ~$0.42` | Costo estimado de todas las requests de la sesión, subagentes incluidos |
+| `turno ~$0.031` | Costo estimado del turno actual (tu último mensaje y todas las llamadas que disparó) |
+| `effort medium` | Nivel de razonamiento con el que salió la última request |
+| `48k→1.2k tok` | Tokens de la última request: prompt completo (cache incluida) → respuesta |
+| `cache 94%` | Qué parte de ese prompt salió de la cache. Baja a 0% justo después de cambiar de modelo |
+| `manual` | Hay un modelo elegido a mano, distinto al de la sesión |
 
-Tu cuenta tiene que tener acceso al modelo que elijas.
+Si la terminal es angosta, la fila deja primero los datos de la izquierda y descarta los últimos. Mientras el dropdown está abierto, la fila se oculta.
+
+**Los costos son una estimación**: tokens informados por la API multiplicados por el precio de lista. Si usás una suscripción en vez de pagar por token, tomalos como referencia de consumo, no como tu factura. Ver [Limitaciones](#limitaciones).
+
+## Modelos y precios
+
+Precios de lista de la API de Anthropic, en dólares por millón de tokens (MTok), al 6 de octubre de 2026.
+
+| Modelo | Entrada | Salida |
+| --- | --- | --- |
+| ✦ Fable 5.1 | $10 | $50 |
+| ✦ Fable 5 | $10 | $50 |
+| ◆ Opus 5.5 | $4 | $20 |
+| ◆ Opus 5 | $5 | $25 |
+| ◆ Opus 4.8 | $5 | $25 |
+| ◆ Opus 4.7 | $5 | $25 |
+| ◆ Opus 4.6 | $5 | $25 |
+| ▲ Sonnet 5.5 | $2 | $10 |
+| ▲ Sonnet 5 | $2 | $10 |
+| ▲ Sonnet 4.6 | $3 | $15 |
+| ● Haiku 5.5 | $0.10 | $0.50 |
+| ● Haiku 4.5 | $1 | $5 |
+
+Tu cuenta tiene que tener acceso al modelo que elijas. Los precios pueden cambiar: los vigentes están en la [página de precios de Anthropic](https://www.anthropic.com/pricing).
 
 ## Cómo funciona
 
@@ -168,24 +198,29 @@ El mod registra cuatro hooks:
 | --- | --- |
 | `session.start` | Registra el comando `/modelo` |
 | `command.run` | Responde a `/modelo` |
-| `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, guarda qué modelo respondió |
+| `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, suma lo que la API informó de la respuesta |
 | `ui.render` | Dibuja la banda arriba del prompt |
 
 El cambio se hace **por request**: el mod reescribe el campo `model` de cada llamada del loop principal. No ejecuta `/model`.
 
 ## Limitaciones
 
-- **`/model` no refleja la elección.** El comando nativo sigue mostrando el modelo de la sesión; la fuente de verdad es la banda y su nota `respondió …`.
+- **`/model` no refleja la elección.** El comando nativo sigue mostrando el modelo de la sesión; la fuente de verdad es la banda y su dato `respondió …`.
 - **La elección dura la sesión.** Cada sesión nueva arranca siguiendo el modelo de la sesión.
-- **Solo el loop principal.** Los subagentes conservan su propio modelo.
-- **Los modelos están escritos en el código.** Cuando sale un modelo nuevo hay que agregarlo (ver abajo).
-- **Cambiar de modelo a mitad de una conversación cuesta más en esa request**: la cache de la conversación es por modelo, así que el modelo nuevo relee todo el historial. El precio por token también cambia con el modelo.
-- **En terminales angostas** la banda se compacta: con menos de 96 columnas oculta la nota, con menos de 70 deja solo el glifo de los modelos no elegidos.
+- **Solo el loop principal.** Los subagentes conservan su propio modelo (su costo sí se suma al de la sesión).
+- **El costo es estimado.**
+  - Usa precios de lista escritos en el código; no conoce descuentos, suscripciones ni cambios de precio.
+  - La lectura de cache se calcula con la tarifa publicada del modelo o, si no hay, al 10% del precio de entrada; la escritura de cache, al 125%.
+  - Haiku 5.5 se calcula siempre a su tarifa base, aunque los prompts de más de 100K tokens se cobran más caro.
+  - Cuenta solo las requests que pasaron por el mod desde que cargó, y una respuesta de un modelo que no está en la lista suma $0.
+- **Los modelos y precios están escritos en el código.** Cuando sale un modelo nuevo hay que agregarlo (ver abajo).
+- **Cambiar de modelo a mitad de una conversación cuesta más en esa request**: la cache de la conversación es por modelo, así que el modelo nuevo relee todo el historial.
+- **En terminales angostas** la banda se compacta: con menos de 96 columnas oculta la nota de la derecha, con menos de 70 deja solo el glifo de los modelos no elegidos, y la fila de datos descarta sus últimos datos.
 - **La interfaz está en español.**
 
 ## Agregar o cambiar modelos
 
-Todo está en la lista `FAMILIES`, al principio de [`hooks/register.tsx`](hooks/register.tsx). Cada familia tiene su nombre, glifo, color, nota y versiones, de la más nueva a la más vieja:
+Todo está en la lista `FAMILIES`, en [`hooks/models.ts`](hooks/models.ts). Cada familia tiene su nombre, glifo, color, nota y versiones, de la más nueva a la más vieja:
 
 ```ts
 {
@@ -195,13 +230,14 @@ Todo está en la lista `FAMILIES`, al principio de [`hooks/register.tsx`](hooks/
   color: '#FB923C',
   note: 'razonamiento profundo',
   versions: [
-    { version: '5.5', model: 'claude-opus-5-5' },
-    { version: '5', model: 'claude-opus-5' },
+    { version: '5.5', model: 'claude-opus-5-5', price: [4, 20], cacheRead: 0.2 },
+    { version: '5', model: 'claude-opus-5', price: [5, 25] },
   ],
 },
 ```
 
 - `version` es lo que se muestra; `model` es el id exacto de la API.
+- `price` es `[entrada, salida]` en dólares por millón de tokens; `cacheRead`, opcional, el precio de leer cache.
 - La primera versión de la lista es la que se elige al hacer clic en la familia.
 - Para sumar una familia, agregá otro bloque con un `choice` nuevo en minúsculas: ese es el nombre que acepta `/modelo`.
 
@@ -222,7 +258,7 @@ Si lo clonaste (opción B):
 git -C ~/.claude/skills/model-picker pull
 ```
 
-En los dos casos, abrí una sesión nueva o corré `/reload-plugins`.
+En los dos casos, abrí una sesión nueva o corré `/reload-plugins`. Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md).
 
 ## Desinstalar
 
@@ -247,13 +283,16 @@ Opción B: borrá la carpeta `~/.claude/skills/model-picker`.
 Está instalado por dos caminos (plugin y carpeta en `~/.claude/skills/`). Dejá uno solo: desinstalá el plugin o borrá la carpeta.
 
 **Elegí un modelo y `/model` sigue mostrando el anterior.**
-Es lo esperado: el mod no cambia el modelo de la sesión. Mirá la nota `respondió …` de la banda.
+Es lo esperado: el mod no cambia el modelo de la sesión. Mirá el dato `respondió …` de la fila de datos.
 
-**La nota `respondió …` muestra un modelo distinto al elegido.**
+**`respondió …` muestra un modelo distinto al elegido.**
 El cambio no se aplicó. Confirmá que tu cuenta tiene acceso a ese modelo y que el id en `FAMILIES` es correcto; si sigue pasando, abrí un issue con tu versión de Claude Code.
 
-**No aparece la nota de la derecha.**
-Se oculta con menos de 96 columnas. Agrandá la terminal.
+**No aparece la fila de datos.**
+Aparece después de la primera respuesta de la sesión y se oculta mientras el dropdown está abierto.
+
+**El costo no coincide con mi factura.**
+Es una estimación a precio de lista. Ver [Limitaciones](#limitaciones).
 
 **Los colores se ven raros.**
 Los colores son hexadecimales y dependen del soporte de color de tu terminal. Podés cambiarlos en `FAMILIES`.
@@ -268,7 +307,7 @@ git clone https://github.com/juampymdd/claude-code-model-picker.git
 cd claude-code-model-picker
 
 claude plugin validate .   # revisa el manifiesto y los hooks
-claude plugin test .       # corre tests/*.test.tsx
+claude plugin test .       # corre tests/*.test.ts(x)
 claude --plugin-dir .      # abre una sesión con el mod cargado desde esta carpeta
 ```
 
@@ -280,11 +319,14 @@ Estructura:
   marketplace.json   hace que este repo sea instalable como marketplace
 hooks/
   hooks.json         apunta al módulo de hooks
-  register.tsx       todo el mod: modelos, hooks y banda
+  register.tsx       los hooks y el dibujo de la banda
+  models.ts          familias, versiones, ids y precios
+  stats.ts           costo, tokens y la fila de datos
 types/
   index.d.ts         contrato del estado que guarda el mod
 tests/
-  picker.test.tsx    tests
+  picker.test.tsx    la banda, el dropdown y el comando
+  stats.test.ts      costos y formato
 ```
 
 Al cargar el mod, Claude Code escribe los tipos de su API en `.claude-plugin/types/` (ignorada por git); con eso `tsc -p .` chequea los tipos.

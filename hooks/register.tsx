@@ -1,69 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-type Version = { version: string; model: string }
-
-type Family = {
-  choice: string
-  label: string
-  glyph: string
-  color: string
-  note: string
-  // Newest first: a family's chip shows the first, its dropdown lists them all.
-  versions: readonly Version[]
-}
-
-// The versions the Claude API serves, by its own model ids.
-const FAMILIES: readonly Family[] = [
-  {
-    choice: 'fable',
-    label: 'Fable',
-    glyph: '✦',
-    color: '#C084FC',
-    note: 'el más capaz',
-    versions: [
-      { version: '5.1', model: 'claude-fable-5-1' },
-      { version: '5', model: 'claude-fable-5' },
-    ],
-  },
-  {
-    choice: 'opus',
-    label: 'Opus',
-    glyph: '◆',
-    color: '#FB923C',
-    note: 'razonamiento profundo',
-    versions: [
-      { version: '5.5', model: 'claude-opus-5-5' },
-      { version: '5', model: 'claude-opus-5' },
-      { version: '4.8', model: 'claude-opus-4-8' },
-      { version: '4.7', model: 'claude-opus-4-7' },
-      { version: '4.6', model: 'claude-opus-4-6' },
-    ],
-  },
-  {
-    choice: 'sonnet',
-    label: 'Sonnet',
-    glyph: '▲',
-    color: '#38BDF8',
-    note: 'equilibrado',
-    versions: [
-      { version: '5.5', model: 'claude-sonnet-5-5' },
-      { version: '5', model: 'claude-sonnet-5' },
-      { version: '4.6', model: 'claude-sonnet-4-6' },
-    ],
-  },
-  {
-    choice: 'haiku',
-    label: 'Haiku',
-    glyph: '●',
-    color: '#34D399',
-    note: 'rápido y barato',
-    versions: [
-      { version: '5.5', model: 'claude-haiku-5-5' },
-      { version: '4.5', model: 'claude-haiku-4-5' },
-    ],
-  },
-]
+import { FAMILIES, latest, pickOfId, pickOfName, pickOfText } from './models'
+import type { Pick } from './models'
+import { priceLabel, statsLine, tally } from './stats'
 
 const COMMAND = 'modelo'
 const NAMES = ['auto', ...FAMILIES.map(f => f.choice)].join(' | ')
@@ -78,46 +18,13 @@ const NAME_COLUMNS = 70
 const choice = atom({ plugin: 'model-picker', key: 'choice' } as const, 'auto')
 // The family whose version dropdown is open; '' while none is.
 const open = atom({ plugin: 'model-picker', key: 'open' } as const, '')
-// The model id the API reported on the main loop's latest response; '' before it.
-const answeredBy = atom({ plugin: 'model-picker', key: 'answeredBy' } as const, '')
-
-type Pick = { family: Family; version: Version }
-
-const latest = (family: Family): Pick => ({ family, version: family.versions[0] as Version })
-
-const pickOfId = (id: string): Pick | undefined => {
-  for (const family of FAMILIES) {
-    const version = family.versions.find(v => v.model === id)
-    if (version !== undefined) return { family, version }
-  }
-
-  return undefined
-}
-
-// `opus`, `opus 4.8`: a family and, when written, one of its versions.
-const pickOfText = (text: string): Pick | undefined => {
-  const [name = '', written] = text.trim().toLowerCase().split(/\s+/)
-  const family = FAMILIES.find(f => f.choice === name)
-  if (family === undefined) return undefined
-
-  const version = family.versions.find(v => v.version === written)
-
-  return written === undefined ? latest(family) : version && { family, version }
-}
+// What the API reported of the session's responses; null before the first.
+const stats = atom({ plugin: 'model-picker', key: 'stats' } as const, null)
 
 // The session's own model as `/model` names it (`Opus 5.5`, `claude-opus-5-5`).
 const pickOfSession = async ($: EngineInterface): Promise<Pick | undefined> => {
   try {
-    const name = (await $.session.model()).toLowerCase()
-    const family = FAMILIES.find(f => name.includes(f.choice))
-    if (family === undefined) return undefined
-
-    const written = /(\d+)(?:[.-](\d{1,2})(?!\d))?/.exec(name)
-    const text = written === null ? undefined : [written[1], written[2]].filter(Boolean).join('.')
-    const known = family.versions.find(v => v.version === text)
-
-    // A version the list lacks is still shown as the session runs it.
-    return { family, version: known ?? { version: text ?? latest(family).version.version, model: '' } }
+    return pickOfName(await $.session.model())
   } catch {
     return undefined
   }
@@ -133,13 +40,6 @@ const switchTo = async ($: EngineInterface, target: Pick): Promise<void> => {
   await update($, choice, () => (isOwn ? 'auto' : target.version.model))
   await update($, open, () => '')
   $.ui.invalidate('ui.render')
-}
-
-// A model id as the band names it (`claude-opus-5-5` -> `Opus 5.5`).
-const nameOfId = (id: string): string => {
-  const known = pickOfId(id)
-
-  return known === undefined ? id : `${known.family.label} ${known.version.version}`
 }
 
 export const register: Register = on => {
@@ -177,17 +77,14 @@ export const register: Register = on => {
   })
 
   // The main loop's requests name the picked model; a subagent keeps its own.
-  // What the API reports as having answered is kept for the band.
+  // What the API reports of every response is tallied for the band.
   on('turn.step', async function* ($, e, next) {
-    if (e.agentId !== undefined) return yield* next(e)
-
-    const override = pickOfId(await read($, choice))
+    const isMain = e.agentId === undefined
+    const override = isMain ? pickOfId(await read($, choice)) : undefined
     const response = yield* next(override === undefined ? e : { ...e, model: override.version.model })
 
-    const answered = response.usage?.model ?? null
-    if (answered !== null && answered !== (await read($, answeredBy))) {
-      await update($, answeredBy, () => answered)
-    }
+    const usage = response.usage
+    if (usage !== null) await update($, stats, was => tally(was, e, usage, isMain))
 
     return response
   })
@@ -197,12 +94,13 @@ export const register: Register = on => {
 
     const { Box, Button, Text } = $.ui.resolve(e)
     const own = await pickOfSession($)
-    const picked = pickOfId(await read($, choice)) ?? own
+    const override = pickOfId(await read($, choice))
+    const picked = override ?? own
     const shown = await read($, open)
-    const answered = await read($, answeredBy)
     const columns = e.props.bodyColumns
     const hasNames = columns >= NAME_COLUMNS
     const opened = FAMILIES.find(f => f.choice === shown)
+    const line = statsLine(await read($, stats), override !== undefined, columns - 2)
 
     const chips = FAMILIES.map(family => {
       const isActive = picked?.family === family
@@ -250,7 +148,6 @@ export const register: Register = on => {
             <Text color={picked.family.color} italic>
               {'  '}
               {picked.family.note}
-              {answered === '' ? '' : ` · respondió ${nameOfId(answered)}`}
             </Text>
           )}
         </Box>
@@ -269,9 +166,17 @@ export const register: Register = on => {
                   {` ${isCurrent ? '●' : '○'} ${opened.label} ${version.version} `}
                 </Text>
               </Button>
+              <Text dimColor>{priceLabel(version.price)} por MTok</Text>
             </Box>
           )
         })}
+        {opened === undefined && line !== '' && (
+          <Box marginLeft={2}>
+            <Text dimColor wrap="truncate-end">
+              {line}
+            </Text>
+          </Box>
+        )}
       </Box>
     )
   })

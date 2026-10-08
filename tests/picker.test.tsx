@@ -99,18 +99,46 @@ test('the active chip opens its versions, and a pick there switches and closes',
   expect(sent).toEqual(['claude-opus-4-8', 'claude-opus-4-8'])
 })
 
-test('the band names the model the API says answered', async ($, on) => {
+test('the stats row reports what the API said of the responses', async ($, on) => {
   stubSession(on, 'claude-opus-5-5')
-  stubStep(on, [])
+  on('turn.step', async function* (_$, e) {
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      ...DONE,
+      usage: {
+        input_tokens: 100_000,
+        output_tokens: 20_000,
+        cache_read_input_tokens: 900_000,
+        cache_creation_input_tokens: 0,
+        model: e.model,
+      },
+    }
+  })
 
-  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect(await ui.find({ type: 'Text', text: /respondió/ })).toBeUndefined()
+  for (const surface of ['terminal', 'desktop'] as const) {
+    await $.command.run(run('auto'))
+    const ui = await $.ui.mount({ ...BAND, surface })
 
-  await ui.press({ key: 'haiku' })
-  await step($)
-  expect(await ui.find({ type: 'Text', text: /respondió Haiku 5\.5/ })).toBeDefined()
+    await ui.press({ key: 'haiku' })
+    await step($, { effort: 'medium', turnId: surface })
 
-  await ui.unmount()
+    // Haiku 5.5: 0.1M in at $0.10 + 0.02M out at $0.50 + 0.9M cached at $0.01.
+    const row = await ui.find({ type: 'Text', text: /respondió Haiku 5\.5/ })
+    expect(row?.text).toMatch(/turno ~\$0\.029/)
+    expect(row?.text).toMatch(/effort medium/)
+    expect(row?.text).toMatch(/1\.0M→20k tok/)
+    expect(row?.text).toMatch(/cache 90%/)
+    expect(row?.text).toMatch(/manual$/)
+
+    await ui.press({ key: 'haiku' })
+    expect(await ui.find({ type: 'Text', text: /respondió/ })).toBeUndefined()
+    expect(await ui.find({ type: 'Text', text: /\$0\.10\/\$0\.50 por MTok/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /\$1\/\$5 por MTok/ })).toBeDefined()
+    await ui.press({ key: 'haiku' })
+
+    await ui.unmount()
+  }
 })
 
 test('the command picks a family and a version, and refuses an unknown name', async ($, on) => {
