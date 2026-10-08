@@ -32,6 +32,7 @@ With the version dropdown open:
 - **Instant switch**: the choice applies to the next request.
 - **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
 - **`/modelo` command** to do the same from the keyboard.
+- **Updates itself**: once a day it looks for a new version and installs it. It can be [turned off](#turning-it-off).
 
 ## Requirements
 
@@ -178,6 +179,8 @@ The mod registers four hooks:
 | `turn.step` | Before each request of the main loop, sets the picked model; after it, tallies what the API reported |
 | `ui.render` | Draws the band above the prompt |
 
+Also, at `session.start` it starts the check for a new version in the background (see [Update](#update)).
+
 The switch is **per request**: the mod rewrites the `model` field of each call the main loop makes. It never runs `/model`.
 
 ## Limitations
@@ -222,32 +225,38 @@ With option B or C, changes reload on save. Before sharing them, run `claude plu
 
 ## Update
 
-Installed as a plugin (option A):
+**The mod updates itself.** Once a day, when a session starts, it reads the version published in this repository. If that is newer than the installed one, it installs it the way this copy was installed:
+
+| Install | What runs |
+| --- | --- |
+| As a plugin (option A) | `claude plugin marketplace update model-picker` and `claude plugin update model-picker@model-picker` |
+| Cloned (option B) | `git pull --ff-only` in the mod's folder |
+| Anything else (e.g. `--plugin-dir` without git) | Nothing: it only tells you a new version exists |
+
+When done it shows `model-picker actualizado a X.Y.Z · /reload-plugins o sesión nueva para aplicar` ("updated to X.Y.Z · /reload-plugins or a new session to apply"). The running session keeps the version it loaded until you run `/reload-plugins` or open another.
+
+It does not slow startup (it runs in the background), does nothing offline, and if the install fails it tells you the command to run by hand.
+
+### What that means
+
+With this on, **every new version published in this repository is installed and run on your machine without you reviewing it**. That is convenient, and also the reason to turn it off if you would rather read the changes first: they are in [CHANGELOG.md](CHANGELOG.md).
+
+### Turning it off
+
+Inside a session: `/config` → **Actualización automática** (`model-picker.autoUpdate`) → off.
+
+With it off, update by hand:
 
 ```bash
+# option A
 claude plugin marketplace update model-picker
 claude plugin update model-picker@model-picker
-```
 
-Cloned (option B):
-
-```bash
+# option B
 git -C ~/.claude/skills/model-picker pull
 ```
 
-Either way, open a new session or run `/reload-plugins`. Each version's changes are in [CHANGELOG.md](CHANGELOG.md).
-
-### Automatic updates
-
-Installed as a plugin (option A), Claude Code can update it by itself, but that is **off by default** for third-party marketplaces like this one. To turn it on, inside a session:
-
-1. Type `/plugin`.
-2. Open **Marketplaces** and pick `model-picker`.
-3. Turn on **Enable auto-update**.
-
-From then on, in each session Claude Code checks the marketplace a few minutes after your first message. If there is a new version it downloads it and shows `Plugin updated: model-picker · Run /reload-plugins to apply`; if you don't run that command, the new version loads in your next session.
-
-Cloned (option B) there are no automatic updates: run `git pull`.
+Self-update exists since version 0.3.0: from an earlier version, update by hand once.
 
 ## Uninstall
 
@@ -311,11 +320,13 @@ hooks/
   register.tsx       the hooks and the band's drawing
   models.ts          families, versions, ids and prices
   stats.ts           cost, tokens and the stats row
+  update.ts          the self-update
 types/
   index.d.ts         the contract of the state the mod keeps
 tests/
   picker.test.tsx    the band, the dropdown and the command
   stats.test.ts      costs and formatting
+  update.test.ts     the self-update
 ```
 
 When it loads the mod, Claude Code writes its API's types into `.claude-plugin/types/` (git-ignored); with them `tsc -p .` type-checks the mod.

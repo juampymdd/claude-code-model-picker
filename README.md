@@ -48,6 +48,7 @@ Con el dropdown de versiones abierto:
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
 - **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
+- **Se actualiza solo**: una vez por día busca una versión nueva y la instala. Se puede [apagar](#apagarlo).
 
 ## Requisitos
 
@@ -119,7 +120,7 @@ Tiene que aparecer `model-picker` con estado `enabled` o `loaded`:
 
 ```
 ❯ model-picker@model-picker
-  Version: 0.2.0
+  Version: 0.3.0
   Scope: user
   Status: ✔ enabled
 ```
@@ -203,6 +204,8 @@ El mod registra cuatro hooks:
 | `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, suma lo que la API informó de la respuesta |
 | `ui.render` | Dibuja la banda arriba del prompt |
 
+Además, en `session.start` lanza en segundo plano la búsqueda de versión nueva (ver [Actualizar](#actualizar)).
+
 El cambio se hace **por request**: el mod reescribe el campo `model` de cada llamada del loop principal. No ejecuta `/model`.
 
 ## Limitaciones
@@ -247,32 +250,38 @@ Con la opción B o C los cambios se recargan solos al guardar. Antes de comparti
 
 ## Actualizar
 
-Si lo instalaste como plugin (opción A):
+**El mod se actualiza solo.** Una vez por día, al iniciar una sesión, lee la versión publicada en este repositorio. Si es más nueva que la instalada, la instala según cómo esté instalado:
+
+| Instalación | Qué corre |
+| --- | --- |
+| Como plugin (opción A) | `claude plugin marketplace update model-picker` y `claude plugin update model-picker@model-picker` |
+| Clonado (opción B) | `git pull --ff-only` en la carpeta del mod |
+| Otra (por ejemplo `--plugin-dir` sin git) | Nada: solo avisa que hay versión nueva |
+
+Al terminar muestra `model-picker actualizado a X.Y.Z · /reload-plugins o sesión nueva para aplicar`. La sesión en curso sigue con la versión que cargó hasta que corras `/reload-plugins` o abras otra.
+
+No demora el arranque (corre en segundo plano), sin red no hace nada, y si la instalación falla avisa con el comando para correrlo a mano.
+
+### Qué implica
+
+Con esto, **cada versión nueva que se publique en este repositorio se instala y corre en tu máquina sin que la revises**. Es cómodo, y es también la razón para apagarlo si preferís leer los cambios antes: están en [CHANGELOG.md](CHANGELOG.md).
+
+### Apagarlo
+
+Dentro de una sesión: `/config` → **Actualización automática** (`model-picker.autoUpdate`) → desactivar.
+
+Apagado, se actualiza a mano:
 
 ```bash
+# opción A
 claude plugin marketplace update model-picker
 claude plugin update model-picker@model-picker
-```
 
-Si lo clonaste (opción B):
-
-```bash
+# opción B
 git -C ~/.claude/skills/model-picker pull
 ```
 
-En los dos casos, abrí una sesión nueva o corré `/reload-plugins`. Los cambios de cada versión están en [CHANGELOG.md](CHANGELOG.md).
-
-### Actualización automática
-
-Instalado como plugin (opción A), Claude Code puede actualizarlo solo, pero **viene apagado** para marketplaces de terceros como este. Para prenderlo, dentro de una sesión:
-
-1. Escribí `/plugin`.
-2. Entrá en **Marketplaces** y elegí `model-picker`.
-3. Activá **Enable auto-update**.
-
-Desde ahí, en cada sesión Claude Code revisa el marketplace unos minutos después de tu primer mensaje. Si hay versión nueva la descarga y avisa `Plugin updated: model-picker · Run /reload-plugins to apply`; si no corrés ese comando, la versión nueva carga en la próxima sesión.
-
-Clonado (opción B) no hay actualización automática: hay que hacer `git pull`.
+La actualización automática existe desde la versión 0.3.0: desde una versión anterior hay que actualizar a mano una vez.
 
 ## Desinstalar
 
@@ -336,11 +345,13 @@ hooks/
   register.tsx       los hooks y el dibujo de la banda
   models.ts          familias, versiones, ids y precios
   stats.ts           costo, tokens y la fila de datos
+  update.ts          la actualización automática
 types/
   index.d.ts         contrato del estado que guarda el mod
 tests/
   picker.test.tsx    la banda, el dropdown y el comando
   stats.test.ts      costos y formato
+  update.test.ts     la actualización automática
 ```
 
 Al cargar el mod, Claude Code escribe los tipos de su API en `.claude-plugin/types/` (ignorada por git); con eso `tsc -p .` chequea los tipos.

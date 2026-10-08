@@ -2,10 +2,11 @@
 
 Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones, [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [0.3.0] - 2026-10-08
 
 ### Agregado
 
+- Actualización automática: una vez por día, al iniciar una sesión, el mod lee la versión publicada en el repositorio y, si es más nueva, la instala (`claude plugin update` si se instaló como plugin, `git pull --ff-only` si se clonó). Se apaga desde `/config` (`model-picker.autoUpdate`).
 - Antes de la primera respuesta de la sesión, la fila de datos avisa que los datos llegan tras la próxima respuesta, en vez de no mostrarse.
 - CI en GitHub Actions: `claude plugin validate` y `claude plugin test` en cada push y pull request.
 
@@ -34,5 +35,6 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Comando `/modelo`.
 - Licencia MIT.
 
+[0.3.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/juampymdd/claude-code-model-picker/releases/tag/v0.1.0

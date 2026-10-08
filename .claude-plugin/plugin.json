@@ -1,8 +1,18 @@
 {
   "name": "model-picker",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A band above the prompt to pick which model, and which version of it, runs the next requests, with cost, tokens and cache stats.",
-  "author": { "name": "Juan Pablo Maddoni" },
+  "author": {
+    "name": "Juan Pablo Maddoni"
+  },
   "license": "MIT",
-  "types": "./types/index.d.ts"
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "autoUpdate": {
+      "type": "boolean",
+      "title": "Actualización automática",
+      "description": "Una vez por día, busca una versión nueva del mod en GitHub y la instala sola.",
+      "default": true
+    }
+  }
 }

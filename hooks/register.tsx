@@ -4,6 +4,8 @@ import type { EngineInterface, Register } from 'claude-code'
 import { FAMILIES, latest, pickOfId, pickOfName, pickOfText } from './models'
 import type { Pick } from './models'
 import { priceLabel, statsLine, tally } from './stats'
+import { selfUpdate } from './update'
+import type { Host } from './update'
 
 const COMMAND = 'modelo'
 const NAMES = ['auto', ...FAMILIES.map(f => f.choice)].join(' | ')
@@ -44,12 +46,29 @@ const switchTo = async ($: EngineInterface, target: Pick): Promise<void> => {
   $.ui.invalidate('ui.render')
 }
 
-export const register: Register = on => {
+// The host as the self-update reaches it.
+const hostOf = ($: EngineInterface): Host => ({
+  name: $.plugin.name,
+  root: $.plugin.root,
+  now: () => $.clock.now(),
+  get: key => $.store.get(key),
+  set: (key, value) => $.store.set(key, value),
+  read: path => $.fs.read(path),
+  exists: path => $.fs.exists(path),
+  fetch: url => $.http.fetch(url),
+  run: (argv, init) => $.process.run(argv, init),
+  toast: text => $.ui.toast(text),
+})
+
+export const register: Register = (on, options) => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: COMMAND,
       description: `Elige el modelo de las próximas requests (${NAMES}) y su versión: /${COMMAND} opus 4.8`,
     })
+
+    // Left running: the session does not wait on the network to start.
+    if (options.autoUpdate !== false) void selfUpdate(hostOf($))
 
     return next(e)
   })
