@@ -11,7 +11,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Animaciones en la terminal y la app de escritorio: tiempos que corren, estado que late, spinner de la herramienta en curso, barras y medidor de contexto que crecen, columnas que suben, agentes que entran deslizándose y se atenúan al terminar.
 - Medidor de contexto en el encabezado del panel (verde, ámbar desde 70 %, rojo desde 90 %).
 - Medidores animados de cache y de contexto en la fila de datos de la banda.
-- Pestaña **Juegos** con Pong y Space Invaders, con teclado y mouse y récords guardados entre sesiones. Viene apagada: se habilita con `/modelo juegos` o desde `/config` (`model-picker.games`).
+- Pestaña **Juegos** con Pong y Space Invaders, con teclado y mouse y récords guardados entre sesiones. Está en la pestaña `▶ Jugar`, siempre a la vista; se oculta con `/modelo juegos` o desde `/config` (`model-picker.games`).
 - En la banda: un `●` con la cantidad de agentes trabajando al lado del botón de estadísticas, y un destello en el chip al cambiar de modelo.
 - Botón `▦ stats` al final de la banda y subcomando `/modelo stats` para abrir y cerrar el panel; pestañas con clic o con las teclas `1` a `5`.
 - Un `/clear` reinicia los números de la sesión.

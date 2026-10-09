@@ -15,7 +15,7 @@ export const TABS: readonly { tab: Tab; label: string; hotkey: string }[] = [
   { tab: 'tools', label: 'Tools', hotkey: '3' },
   { tab: 'ritmo', label: 'Ritmo', hotkey: '4' },
   { tab: 'agentes', label: 'Agentes', hotkey: '5' },
-  { tab: 'juegos', label: 'Juegos', hotkey: '6' },
+  { tab: 'juegos', label: '▶ Jugar', hotkey: '6' },
 ]
 
 const GAMES: readonly { game: Game; label: string }[] = [

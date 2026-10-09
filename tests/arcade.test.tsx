@@ -47,7 +47,7 @@ const screen = async (ui: Mounted): Promise<string> =>
     .map(node => node.text)
     .join('\n')
 
-test('the games tab is there only once enabled, and /modelo juegos turns it on and off', async ($, on) => {
+test('the play tab is there from the start, and /modelo juegos hides it and brings it back', async ($, on) => {
   world(on)
   const ui = await $.ui.mount({ ...pane(70), surface: 'terminal' })
   await setGames($, ui, false)
@@ -167,5 +167,16 @@ test('a pane too narrow to play says so', async ($, on) => {
 
   await ui.press({ key: 'costo' })
   await setGames($, ui, false)
+  await ui.unmount()
+})
+
+test('the play tab is offered without asking for it', async ($, on) => {
+  world(on)
+  const ui = await $.ui.mount({ ...pane(70), surface: 'terminal' })
+  await $.session.end({ reason: 'other', sessionId: 's', resume: { id: 's' } }).catch(() => undefined)
+
+  await setGames($, ui, true)
+  expect(await ui.find({ type: 'Text', text: /6: ▶ Jugar/ })).toBeDefined()
+
   await ui.unmount()
 })

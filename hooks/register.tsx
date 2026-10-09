@@ -38,8 +38,8 @@ const showDone = atom({ plugin: 'model-picker', key: 'showDone' } as const, true
 // When the model was last switched, while its chip is still lit; 0 otherwise.
 const flash = atom({ plugin: 'model-picker', key: 'flash' } as const, 0)
 
-// The games tab: whether it is offered this session, the game shown, the best scores.
-const gamesOn = atom({ plugin: 'model-picker', key: 'games' } as const, false)
+// The games tab: whether it is offered this session (it is, unless turned off), the game shown, the best scores.
+const gamesOn = atom({ plugin: 'model-picker', key: 'games' } as const, true)
 const gameOf = atom({ plugin: 'model-picker', key: 'game' } as const, 'pong')
 const best = atom({ plugin: 'model-picker', key: 'best' } as const, { pong: 0, invaders: 0 })
 
@@ -148,9 +148,9 @@ export const register: Register = (on, options) => {
     // Left running: the session does not wait on the network to start.
     if (options.autoUpdate !== false) void selfUpdate(hostOf($))
 
-    // The games are offered when the option says so; their best scores come from the store.
+    // The games are offered unless the option says not; their best scores come from the store.
     try {
-      if (options.games === true) await update($, gamesOn, () => true)
+      if (options.games === false) await update($, gamesOn, () => false)
 
       const kept = (await $.store.get(BEST_KEY)) as Partial<Best> | undefined
       if (kept !== undefined) await update($, best, was => ({ pong: Number(kept.pong ?? was.pong), invaders: Number(kept.invaders ?? was.invaders) }))
@@ -181,7 +181,7 @@ export const register: Register = (on, options) => {
       await update($, gamesOn, () => isOn)
       if (!isOn) await update($, tabOf, was => (was === 'juegos' ? 'costo' : was))
 
-      return { text: `Juegos: ${isOn ? 'habilitados (pestaña 6 del panel de estadísticas)' : 'deshabilitados'}` }
+      return { text: `Juegos: ${isOn ? 'habilitados (pestaña ▶ Jugar del panel de estadísticas)' : 'deshabilitados'}` }
     }
 
     if (text === 'stats') {

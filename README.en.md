@@ -32,7 +32,7 @@ With the version dropdown open:
 - **Instant switch**: the choice applies to the next request.
 - **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
 - **Animated stats pane** with charts of the session's cost, models, tools and pace, and the **agents, live**: what each one is doing, on which model and what it costs.
-- **Pong and Space Invaders** in the pane, for when Claude works by itself (they have to be [turned on](#6--juegos-games)).
+- **Pong and Space Invaders** in the pane, for when Claude works by itself, under the [`▶ Jugar`](#6--juegos-games) tab.
 - **`/modelo` command** to do the same from the keyboard.
 - **Updates itself**: once a day it looks for a new version and installs it. It can be [turned off](#turning-it-off).
 
@@ -125,7 +125,7 @@ claude plugin list
 | `/modelo opus 4.8` | Switches to that exact version |
 | `/modelo auto` | Goes back to the session's model |
 | `/modelo stats` | Opens or closes the [stats pane](#the-stats-pane) |
-| `/modelo juegos` | Turns the pane's [games](#6--juegos-games) tab on or off |
+| `/modelo juegos` | Hides or shows the pane's [games](#6--juegos-games) tab |
 
 Families: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -158,10 +158,10 @@ A pane with charts of the whole session. Open and close it with the **`▦ stats
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   (6: Juegos)
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar
 ```
 
-Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `5` keys (and `6` when the games are on). The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
+Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `6` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
 
 ### 1 · Costo (cost)
 
@@ -256,12 +256,12 @@ Each agent takes two rows. On top: state, type, description, time and cost. Belo
 
 ### 6 · Juegos (games)
 
-For when Claude is working by itself: **Pong** and **Space Invaders** inside the pane. The tab is off by default.
+For when Claude is working by itself: **Pong** and **Space Invaders** inside the pane, under the **`▶ Jugar`** ("play") tab, always there beside the others.
 
-**Turning it on:** `/modelo juegos` turns it on or off for the session. To have it always, `/config` → **Juegos en el panel** (`model-picker.games`).
+**Hiding it:** `/modelo juegos` removes it or puts it back for the session. To never see it, `/config` → **Juegos en el panel** (`model-picker.games`) → off.
 
 ```
- 6: Juegos     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
+ 6: ▶ Jugar     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
 ```
 
 Pick the game with a click. To play with the keyboard you have to **click on the game** (that gives it the focus); `Esc` hands it back to the prompt. The mouse always works.

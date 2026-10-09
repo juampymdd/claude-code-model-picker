@@ -49,7 +49,7 @@ Con el dropdown de versiones abierto:
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
 - **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
 - **Panel de estadísticas** animado, con gráficos de costo, modelos, herramientas y ritmo de la sesión, y los **agentes en vivo**: qué hace cada uno, con qué modelo y cuánto gasta.
-- **Pong y Space Invaders** en el panel, para cuando Claude trabaja solo (hay que [habilitarlos](#6--juegos)).
+- **Pong y Space Invaders** en el panel, para cuando Claude trabaja solo, en la pestaña [`▶ Jugar`](#6--juegos).
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
 - **Se actualiza solo**: una vez por día busca una versión nueva y la instala. Se puede [apagar](#apagarlo).
 
@@ -151,7 +151,7 @@ Después, en una sesión nueva, escribí `/modelo`. Si responde `Modelo: Opus 5.
 | `/modelo opus 4.8` | Cambia a esa versión puntual |
 | `/modelo auto` | Vuelve al modelo de la sesión |
 | `/modelo stats` | Abre o cierra el [panel de estadísticas](#el-panel-de-estadísticas) |
-| `/modelo juegos` | Habilita o deshabilita la pestaña de [juegos](#6--juegos) del panel |
+| `/modelo juegos` | Oculta o muestra la pestaña de [juegos](#6--juegos) del panel |
 
 Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -184,10 +184,10 @@ Un panel con gráficos de toda la sesión. Se abre y se cierra con el botón **`
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   (6: Juegos)
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar
 ```
 
-Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `5` (y `6` si los juegos están habilitados). Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
+Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `6`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
 
 ### 1 · Costo
 
@@ -282,12 +282,12 @@ Cada agente ocupa dos filas. Arriba: estado, tipo, descripción, tiempo y costo.
 
 ### 6 · Juegos
 
-Para los ratos en que Claude trabaja solo: **Pong** y **Space Invaders** dentro del panel. La pestaña viene apagada.
+Para los ratos en que Claude trabaja solo: **Pong** y **Space Invaders** dentro del panel, en la pestaña **`▶ Jugar`**, siempre a la vista al lado de las demás.
 
-**Habilitarla:** `/modelo juegos` la prende o apaga para la sesión. Para tenerla siempre, `/config` → **Juegos en el panel** (`model-picker.games`).
+**Ocultarla:** `/modelo juegos` la saca o la vuelve a poner para la sesión. Para no verla nunca, `/config` → **Juegos en el panel** (`model-picker.games`) → desactivar.
 
 ```
- 6: Juegos     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
+ 6: ▶ Jugar     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
 ```
 
 Se elige el juego con un clic. Para jugar con el teclado hay que **hacer clic sobre el juego** (así toma el foco); `Esc` se lo devuelve al prompt. El mouse funciona siempre.
