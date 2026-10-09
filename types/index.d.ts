@@ -19,7 +19,7 @@ export type Stats = {
 }
 
 // The stats pane's tabs.
-export type Tab = 'costo' | 'modelos' | 'tools' | 'ritmo'
+export type Tab = 'costo' | 'modelos' | 'tools' | 'ritmo' | 'agentes'
 
 // One user turn of the main loop, as the stats pane charts it.
 export type Turn = {
@@ -51,6 +51,35 @@ export type ModelStat = { cost: number; input: number; output: number; steps: nu
 
 export type ToolStat = { name: string; count: number; errors: number; totalMs: number }
 
+// Where an agent's loop stands, as Claude Code names it.
+export type AgentStatus = 'pending' | 'running' | 'waiting' | 'idle' | 'completed' | 'failed' | 'killed'
+
+// One subagent or teammate of the session, as the stats pane lists it.
+export type AgentStat = {
+  id: string
+  // Its agent type (`Explore`, `Plan`, ...); `agente` until Claude Code says.
+  type: string
+  description: string
+  // The agent whose loop spawned it; absent when the main loop did.
+  parentId?: string
+  // The model id of its latest response; '' before the first.
+  model: string
+  startedAt: number
+  // Absent while it runs.
+  endedAt?: number
+  status: AgentStatus
+  // Its requests, their dollars, and the dollars of the latest ones (for its sparkline).
+  steps: number
+  cost: number
+  costs: number[]
+  // Whole prompt tokens (cache included) and output tokens.
+  input: number
+  output: number
+  tools: ToolStat[]
+  // The tool call it is in now, and since when.
+  busy?: { tool: string; since: number }
+}
+
 export type History = {
   // Newest last, the latest 200; `dropped` counts the ones cut.
   turns: Turn[]
@@ -58,6 +87,8 @@ export type History = {
   // By model id, as the model list names it.
   models: Record<string, ModelStat>
   tools: ToolStat[]
+  // Newest last, the latest 100.
+  agents: AgentStat[]
   // The whole session, whatever the caps cut.
   total: {
     cost: number
@@ -78,8 +109,13 @@ declare module 'claude-code' {
       choice: Choice
       open: string
       stats: Stats | null
-      history: History
+      // The stats pane's data: `record` what it charts, `tab` the one shown,
+      // `showDone` whether finished agents are listed, `flash` when the model
+      // was last switched (0 once the chip's highlight is over).
+      record: History
       tab: Tab
+      showDone: boolean
+      flash: number
     }
   }
 }

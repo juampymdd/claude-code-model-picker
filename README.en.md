@@ -31,7 +31,7 @@ With the version dropdown open:
 - **Starts on your real model**: a new session highlights the model the session already runs.
 - **Instant switch**: the choice applies to the next request.
 - **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
-- **Stats pane** with charts of the session's cost, models, tools and pace.
+- **Animated stats pane** with charts of the session's cost, models, tools and pace, and the **agents, live**: what each one is doing, on which model and what it costs.
 - **`/modelo` command** to do the same from the keyboard.
 - **Updates itself**: once a day it looks for a new version and installs it. It can be [turned off](#turning-it-off).
 
@@ -154,11 +154,11 @@ In a narrow terminal the row keeps its leftmost parts and drops the last ones. I
 A pane with charts of the whole session. Open and close it with the **`▦ stats`** button at the end of the band, or with `/modelo stats`. On wide terminals (110 columns or more, fullscreen) it docks on the right; otherwise it shows above the prompt. `Esc` closes it too when it has the focus.
 
 ```
-sesión 1h12m · ~$0.42 · 31 turnos · contexto 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo
+sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes
 ```
 
-Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `4` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
+Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `5` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
 
 ### 1 · Costo (cost)
 
@@ -220,14 +220,65 @@ actividad  ··▁▃█▅···▂▃▁··▂▅   16 tramos de 4m30s
 - `actividad` (activity) spreads the steps over the session's time; a `·` is a stretch with no activity.
 - Each turn ends as `respuesta` (answered), `abortado` (aborted), `rechazo` (refused) or `error`, and reads `en curso` (running) while it runs.
 
+### 5 · Agentes (agents)
+
+The session's subagents, live. Claude Code already shows which agents are running; this tab adds what it does not: what each one costs, on which model, which tools it used, which one it is in now and how long it has been going.
+
+```
+AGENTES  ● 2 corriendo  ✕ 1 fallaron  $1.04
+────────────────────────────────────────────────────────────────────────
+● Explore   buscar usos de FAMILIES                        1m12s  $0.058
+  ● Haiku 5.5  12 req  Grep ×3 Read ×2  ▸ ⠹ Grep 4s          ▁▂▃▅▇█
+● Plan      diseñar pestaña de agentes                     3m02s   $0.98
+  ◆ Opus 5.5  8 req  Read ×6            ▸ pensando..         ▁▁▂▄▆█
+✕ general   correr los tests                                  3s  $0.000 error
+  ◆ Opus 5.5  1 req  Bash ×1 ✕1
+```
+
+Each agent takes two rows. On top: state, type, description, time and cost. Below: model, requests, most used tools, what it is doing now (`▸`) and a chart of its latest requests' cost.
+
+| State | Glyph | Color |
+| --- | --- | --- |
+| Running (`corriendo`) | `●` (beats) | green |
+| Waiting, pending or idle (`esperando`) | `◐` (beats) | amber |
+| Finished (`terminados`) | `○` | gray |
+| Failed or cancelled (`fallaron`) | `✕` | red |
+
+- The state colors are Claude Code's theme colors, so they follow your light or dark theme. The model takes its family's color, like the chips in the band.
+- `▸` shows the tool in progress with its time, or `pensando` ("thinking") while the agent waits on the model. A tool's time turns amber after 10 seconds (usually a pending permission prompt), the agent's after 5 minutes.
+- A tool with failures carries `✕` and their count in red. A cost above $1 turns red.
+- An agent spawned by another agent is listed under it, with `└`.
+- Running ones come first (newest on top), then the latest 10 finished; **`ocultar terminados`** ("hide finished") drops them from the list.
+- While agents are at work, a `●` with their count beats beside the band's `▦ stats` button, so you know without opening the pane.
+
+### Motion
+
+In the terminal and the desktop app the pane moves; on other surfaces it is drawn still, with the same data.
+
+| What | How it moves |
+| --- | --- |
+| Times (session, running turn, agents, tool in progress) | Run by themselves, second by second |
+| An active agent's state | The glyph beats |
+| Tool in progress / `pensando` | A spinner and advancing dots |
+| The Models and Tools bars, the context meter | Grow to their value when the tab opens and when new data arrives |
+| Cost columns | Rise from zero when the tab opens |
+| A new agent | Slides in from the right |
+| An agent that ends | Flashes for a moment, then dims |
+| The newest stretch of `actividad` | Beats while a turn is running |
+| The model chip in the band | Lights up for a moment when the model changes |
+
+The context meter (`▰▰▰▱▱▱▱▱ 38%`) goes from green to amber at 70% and to red at 90%. When nothing moves the pane is not redrawn, and with only clocks on screen it is redrawn once a second.
+
 ### Good to know
 
 - The pane counts what the mod has seen since it loaded: it knows nothing of what happened before. A `/clear` resets it.
 - Costs are list-price estimates (see [Limitations](#limitations)). When Claude Code reports a cost of its own, the header shows it beside it as `/cost`.
 - A turn's duration and a tool's time are wall-clock: they include waiting on permissions.
 - A subagent still running after your turn ends adds its cost to whichever turn is open then. The per-model and session totals are exact regardless.
-- The header's session time updates when new data arrives; it does not tick by itself.
-- The latest 200 turns and up to 40 tool names are kept (the rest count as `otros`, "others"); the totals always include everything.
+- An agent shows up when the mod sees it: at its spawn, or at its first request or tool. Those that ended before the mod loaded are not there.
+- Each agent's state is brought from Claude Code's own list every 2 seconds while any is at work. A workflow's agent is not in that list: it is shown all the same, typed `agente` and with no description.
+- `pensando` and the amber of a slow tool are the mod's own deductions (no tool in progress; over 10 seconds), not states Claude Code reports.
+- The latest 200 turns, up to 40 tool names (the rest count as `otros`, "others") and up to 100 agents are kept; the totals always include everything.
 
 ## Models and prices
 
@@ -261,10 +312,13 @@ The mod registers these hooks:
 | `turn.step` | Before each request of the main loop, sets the picked model; after it, tallies what the API reported |
 | `turn.start`, `turn.complete` | Open and close each turn in the stats pane's history |
 | `tool.call` | Counts and times each tool without changing the call |
+| `agent.spawn` | Notes each agent that is spawned, with its type and description |
 | `session.end` | Resets the numbers on a `/clear` |
 | `ui.render` | Draws the band above the prompt and the stats pane |
 
-Also, at `session.start` it starts the check for a new version in the background (see [Update](#update)).
+Also, at `session.start` it starts the check for a new version in the background (see [Update](#update)) and a timer that every 2 seconds brings the agents' state up to date while any is at work.
+
+The pane's moving part is a *surface module* (`hooks/live.tsx`): it runs on the drawing thread with a clock of its own, with no access to the engine, and gets its rows ready-made from the hooks.
 
 The switch is **per request**: the mod rewrites the `model` field of each call the main loop makes. It never runs `/model`.
 
@@ -407,7 +461,10 @@ hooks/
   stats.ts           cost, tokens and the stats row
   charts.ts          charts made of block characters
   history.ts         the history of turns, models and tools
-  pane.tsx           the stats pane's drawing
+  rows.ts            each tab of the pane as rows of text
+  paint.tsx          draws the rows, still or in motion
+  live.tsx           surface module: the clock of the animations
+  pane.tsx           the tabs and the pane's assembly
   update.ts          the self-update
 types/
   index.d.ts         the contract of the state the mod keeps
@@ -416,6 +473,7 @@ tests/
   stats.test.ts      costs and formatting
   charts.test.ts     the charts
   history.test.ts    the history
+  motion.test.ts     the animation engine and the agents list
   pane.test.tsx      the stats pane
   update.test.ts     the self-update
 ```

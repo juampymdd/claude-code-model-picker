@@ -48,7 +48,7 @@ Con el dropdown de versiones abierto:
 - **Arranca en tu modelo real**: al abrir una sesión marca el modelo que la sesión ya usa.
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
 - **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
-- **Panel de estadísticas** con gráficos de costo, modelos, herramientas y ritmo de la sesión.
+- **Panel de estadísticas** animado, con gráficos de costo, modelos, herramientas y ritmo de la sesión, y los **agentes en vivo**: qué hace cada uno, con qué modelo y cuánto gasta.
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
 - **Se actualiza solo**: una vez por día busca una versión nueva y la instala. Se puede [apagar](#apagarlo).
 
@@ -180,11 +180,11 @@ Si la terminal es angosta, la fila deja primero los datos de la izquierda y desc
 Un panel con gráficos de toda la sesión. Se abre y se cierra con el botón **`▦ stats`** del final de la banda, o con `/modelo stats`. En terminales anchas (110 columnas o más, en pantalla completa) se acopla a la derecha; si no, se muestra arriba del prompt. Se cierra también con `Esc` cuando tiene el foco.
 
 ```
-sesión 1h12m · ~$0.42 · 31 turnos · contexto 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo
+sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes
 ```
 
-Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `4`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
+Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `5`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
 
 ### 1 · Costo
 
@@ -246,14 +246,65 @@ actividad  ··▁▃█▅···▂▃▁··▂▅   16 tramos de 4m30s
 - `actividad` reparte los pasos a lo largo del tiempo de la sesión; un `·` es un tramo sin actividad.
 - Cada turno termina en `respuesta`, `abortado`, `rechazo` o `error`, y mientras corre dice `en curso`.
 
+### 5 · Agentes
+
+Los subagentes de la sesión, en vivo. Claude Code ya muestra qué agentes corren; esta pestaña agrega lo que no muestra: cuánto gasta cada uno, con qué modelo, qué herramientas usó, en cuál está ahora y cuánto lleva.
+
+```
+AGENTES  ● 2 corriendo  ✕ 1 fallaron  $1.04
+────────────────────────────────────────────────────────────────────────
+● Explore   buscar usos de FAMILIES                        1m12s  $0.058
+  ● Haiku 5.5  12 req  Grep ×3 Read ×2  ▸ ⠹ Grep 4s          ▁▂▃▅▇█
+● Plan      diseñar pestaña de agentes                     3m02s   $0.98
+  ◆ Opus 5.5  8 req  Read ×6            ▸ pensando..         ▁▁▂▄▆█
+✕ general   correr los tests                                  3s  $0.000 error
+  ◆ Opus 5.5  1 req  Bash ×1 ✕1
+```
+
+Cada agente ocupa dos filas. Arriba: estado, tipo, descripción, tiempo y costo. Abajo: modelo, requests, herramientas más usadas, lo que hace ahora (`▸`) y un gráfico del costo de sus últimas requests.
+
+| Estado | Glifo | Color |
+| --- | --- | --- |
+| Corriendo | `●` (late) | verde |
+| Esperando, pendiente o inactivo | `◐` (late) | ámbar |
+| Terminado | `○` | gris |
+| Falló o fue cancelado | `✕` | rojo |
+
+- Los colores de estado son los del tema de Claude Code, así que siguen tu tema claro u oscuro. El modelo lleva el color de su familia, igual que los chips de la banda.
+- `▸` muestra la herramienta en curso con su tiempo, o `pensando` cuando el agente espera al modelo. El tiempo de una herramienta se pone ámbar pasados 10 segundos (suele ser una confirmación de permisos pendiente) y el del agente, pasados 5 minutos.
+- Una herramienta con fallos lleva `✕` y la cantidad en rojo. Un costo mayor a $1 se pone rojo.
+- Un agente lanzado por otro agente aparece debajo, con `└`.
+- Primero van los que corren (el más nuevo arriba) y después los últimos 10 terminados; **`ocultar terminados`** los saca de la lista.
+- Mientras hay agentes trabajando, al lado del botón `▦ stats` de la banda late un `●` con la cantidad, así te enterás sin abrir el panel.
+
+### Animaciones
+
+En la terminal y en la app de escritorio el panel se mueve; en las demás superficies se dibuja quieto, con los mismos datos.
+
+| Qué | Cómo se mueve |
+| --- | --- |
+| Tiempos (sesión, turno en curso, agentes, herramienta en curso) | Corren solos, segundo a segundo |
+| Estado de un agente activo | El glifo late |
+| Herramienta en curso / `pensando` | Un spinner y puntos que avanzan |
+| Barras de Modelos y Tools, medidor de contexto | Crecen hasta su valor al abrir la pestaña y cuando llega un dato nuevo |
+| Columnas de costo | Suben desde cero al abrir la pestaña |
+| Agente nuevo | Entra deslizándose desde la derecha |
+| Agente que termina | Destella un instante y después se atenúa |
+| Último tramo de `actividad` | Late mientras hay un turno corriendo |
+| Chip del modelo en la banda | Se enciende un instante al cambiar de modelo |
+
+El medidor de contexto (`▰▰▰▱▱▱▱▱ 38%`) pasa de verde a ámbar al 70 % y a rojo al 90 %. Cuando nada se mueve el panel no se redibuja, y con solo relojes en pantalla lo hace una vez por segundo.
+
 ### Cosas a saber
 
 - El panel cuenta lo que ve el mod desde que cargó: no conoce lo que pasó antes. Un `/clear` lo reinicia.
 - Los costos son estimaciones a precio de lista (ver [Limitaciones](#limitaciones)). Si Claude Code informa un costo propio, el encabezado lo muestra al lado como `/cost`.
 - La duración de un turno y el tiempo de una tool son tiempo real: incluyen esperas por permisos.
 - Un subagente que sigue corriendo después de que termina tu turno suma su costo al turno que esté abierto en ese momento. Los totales por modelo y de sesión son exactos igual.
-- El tiempo de sesión del encabezado se actualiza cuando llega un dato nuevo, no corre solo.
-- Se guardan los últimos 200 turnos y hasta 40 nombres de herramientas (el resto se cuenta como `otros`); los totales siempre incluyen todo.
+- Un agente aparece cuando el mod lo ve: al lanzarse, o en su primera request o herramienta. Los que terminaron antes de que cargara el mod no están.
+- El estado de cada agente se trae de la lista de Claude Code cada 2 segundos mientras haya alguno trabajando. Un agente de un workflow no está en esa lista: se muestra igual, con tipo `agente` y sin descripción.
+- `pensando` y el ámbar de una herramienta lenta son deducciones del mod (no hay herramienta en curso; lleva más de 10 segundos), no estados que informe Claude Code.
+- Se guardan los últimos 200 turnos, hasta 40 nombres de herramientas (el resto se cuenta como `otros`) y hasta 100 agentes; los totales siempre incluyen todo.
 
 ## Modelos y precios
 
@@ -287,10 +338,13 @@ El mod registra estos hooks:
 | `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, suma lo que la API informó de la respuesta |
 | `turn.start`, `turn.complete` | Abren y cierran cada turno en el historial del panel de estadísticas |
 | `tool.call` | Cuenta y cronometra cada herramienta sin modificar la llamada |
+| `agent.spawn` | Anota cada agente que se lanza, con su tipo y descripción |
 | `session.end` | Reinicia los números con un `/clear` |
 | `ui.render` | Dibuja la banda arriba del prompt y el panel de estadísticas |
 
-Además, en `session.start` lanza en segundo plano la búsqueda de versión nueva (ver [Actualizar](#actualizar)).
+Además, en `session.start` lanza en segundo plano la búsqueda de versión nueva (ver [Actualizar](#actualizar)) y un temporizador que cada 2 segundos pone al día el estado de los agentes mientras alguno trabaja.
+
+La parte animada del panel es un *módulo de superficie* (`hooks/live.tsx`): corre en el hilo de dibujo con su propio reloj, sin acceso al motor, y recibe de los hooks las filas ya armadas.
 
 El cambio se hace **por request**: el mod reescribe el campo `model` de cada llamada del loop principal. No ejecuta `/model`.
 
@@ -433,7 +487,10 @@ hooks/
   stats.ts           costo, tokens y la fila de datos
   charts.ts          gráficos hechos con caracteres de bloque
   history.ts         el historial de turnos, modelos y tools
-  pane.tsx           el dibujo del panel de estadísticas
+  rows.ts            cada pestaña del panel como filas de texto
+  paint.tsx          dibuja las filas, quietas o en movimiento
+  live.tsx           módulo de superficie: el reloj de las animaciones
+  pane.tsx           las pestañas y el armado del panel
   update.ts          la actualización automática
 types/
   index.d.ts         contrato del estado que guarda el mod
@@ -442,6 +499,7 @@ tests/
   stats.test.ts      costos y formato
   charts.test.ts     los gráficos
   history.test.ts    el historial
+  motion.test.ts     el motor de animación y la lista de agentes
   pane.test.tsx      el panel de estadísticas
   update.test.ts     la actualización automática
 ```

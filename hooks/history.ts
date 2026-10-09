@@ -1,10 +1,13 @@
-import type { History, ModelStat, Turn } from '../types'
+import type { AgentStat, AgentStatus, History, ModelStat, ToolStat, Turn } from '../types'
 import { pickOfId } from './models'
 import { costParts } from './stats'
 import type { Usage } from './stats'
 
 export const TURN_CAP = 200
 export const TOOL_CAP = 40
+export const AGENT_CAP = 100
+// How many of an agent's latest requests its sparkline keeps.
+export const COSTS_KEPT = 12
 const OTHERS = 'otros'
 
 export const EMPTY: History = {
@@ -12,6 +15,7 @@ export const EMPTY: History = {
   dropped: 0,
   models: {},
   tools: [],
+  agents: [],
   total: { cost: 0, agentCost: 0, input: 0, output: 0, cacheRead: 0, cacheWrite: 0, steps: 0 },
 }
 
@@ -44,6 +48,130 @@ const mapTurn = (h: History, turnId: string, change: (turn: Turn) => Turn): Hist
   turns: h.turns.map(turn => (turn.turnId === turnId ? change(turn) : turn)),
 })
 
+const OVER: readonly AgentStatus[] = ['completed', 'failed', 'killed']
+
+/** Whether an agent's loop is over. */
+export const isDone = (agent: AgentStat): boolean => agent.endedAt !== undefined || OVER.includes(agent.status)
+
+const blankAgent = (id: string, startedAt: number): AgentStat => ({
+  id,
+  type: 'agente',
+  description: '',
+  model: '',
+  startedAt,
+  status: 'running',
+  steps: 0,
+  cost: 0,
+  costs: [],
+  input: 0,
+  output: 0,
+  tools: [],
+})
+
+// The agent list with `id` in it, added if it was not; past the cap the finished ones longest gone go first.
+const withAgent = (h: History, id: string, now: number): History => {
+  if (h.agents.some(agent => agent.id === id)) return h
+
+  const agents = [...h.agents, blankAgent(id, now)]
+  if (agents.length <= AGENT_CAP) return { ...h, agents }
+
+  const oldest = agents
+    .filter(isDone)
+    .sort((a, b) => (a.endedAt ?? a.startedAt) - (b.endedAt ?? b.startedAt))
+    .slice(0, agents.length - AGENT_CAP)
+
+  return { ...h, agents: agents.filter(agent => !oldest.includes(agent)).slice(-AGENT_CAP) }
+}
+
+const mapAgent = (h: History, id: string, change: (agent: AgentStat) => AgentStat): History => ({
+  ...h,
+  agents: h.agents.map(agent => (agent.id === id ? change(agent) : agent)),
+})
+
+// An agent seen working again after it had ended (a teammate's next turn) runs again.
+const revived = (agent: AgentStat): AgentStat => {
+  if (agent.endedAt === undefined) return agent
+
+  const { endedAt: _, ...rest } = agent
+
+  return { ...rest, status: 'running' }
+}
+
+/** The history with agent `seed.id` in it, named as its spawn named it; one already there keeps its numbers. */
+export const openAgent = (
+  h: History,
+  seed: { id: string; type?: string; description?: string; parentId?: string; model?: string },
+  now: number,
+): History =>
+  mapAgent(withAgent(h, seed.id, now), seed.id, agent => ({
+    ...agent,
+    type: seed.type ?? agent.type,
+    description: seed.description ?? agent.description,
+    ...(seed.parentId === undefined ? {} : { parentId: seed.parentId }),
+    model: agent.model === '' && seed.model !== undefined ? keyOf(seed.model) : agent.model,
+  }))
+
+/** The history with agent `agentId` inside a call of `tool` since `now`. */
+export const startTool = (h: History, agentId: string, tool: string, now: number): History =>
+  mapAgent(withAgent(h, agentId, now), agentId, agent => ({ ...revived(agent), busy: { tool, since: now } }))
+
+/** The history with agent `done.id` finished at `now`; an id it never saw is ignored. */
+export const closeAgent = (
+  h: History,
+  done: { id: string; reason: NonNullable<Turn['reason']> },
+  now: number,
+): History =>
+  h.agents.some(agent => agent.id === done.id)
+    ? mapAgent(h, done.id, agent => {
+        const { busy: _, ...idle } = agent
+        const status: AgentStatus = done.reason === 'answer' ? 'completed' : done.reason === 'aborted' ? 'killed' : 'failed'
+
+        return { ...idle, endedAt: now, status }
+      })
+    : h
+
+/**
+ * The history brought up to Claude Code's own list of agents: each one listed
+ * takes its type, description, parent and status from it, and one it reports
+ * over is ended. The same history when nothing differs.
+ */
+export const syncAgents = (
+  h: History,
+  list: readonly { id: string; type: string; description: string; status: AgentStatus; parentId?: string }[],
+  now: number,
+): History => {
+  let next = h
+
+  for (const info of list) {
+    const was = next.agents.find(agent => agent.id === info.id)
+    const isOver = OVER.includes(info.status)
+    const isSame =
+      was !== undefined &&
+      was.type === info.type &&
+      was.description === info.description &&
+      was.parentId === info.parentId &&
+      was.status === info.status &&
+      (was.endedAt !== undefined) === isOver
+
+    if (isSame) continue
+
+    next = mapAgent(withAgent(next, info.id, now), info.id, agent => {
+      const { busy, endedAt, parentId: _, ...rest } = agent
+
+      return {
+        ...rest,
+        type: info.type,
+        description: info.description,
+        status: info.status,
+        ...(info.parentId === undefined ? {} : { parentId: info.parentId }),
+        ...(isOver ? { endedAt: endedAt ?? now } : busy === undefined ? {} : { busy }),
+      }
+    })
+  }
+
+  return next
+}
+
 /** A model id as the model list names it, else as the API wrote it. */
 const keyOf = (id: string): string => pickOfId(id)?.version.model ?? id
 
@@ -58,7 +186,7 @@ export const openTurn = (h: History, turnId: string, now: number): History => wi
  */
 export const addStep = (
   h: History,
-  step: { turnId: string; isMain: boolean },
+  step: { turnId: string; isMain: boolean; agentId?: string },
   usage: Usage | null,
   now: number,
 ): History => {
@@ -103,8 +231,19 @@ export const addStep = (
   }
 
   const last = base.turns[base.turns.length - 1]
+  const charged = last === undefined ? base : mapTurn(base, last.turnId, turn => ({ ...turn, agentCost: turn.agentCost + cost }))
 
-  return last === undefined ? base : mapTurn(base, last.turnId, turn => ({ ...turn, agentCost: turn.agentCost + cost }))
+  if (step.agentId === undefined) return charged
+
+  return mapAgent(withAgent(charged, step.agentId, now), step.agentId, agent => ({
+    ...revived(agent),
+    steps: agent.steps + 1,
+    model: usage === null ? agent.model : keyOf(usage.model),
+    cost: agent.cost + cost,
+    costs: [...agent.costs, cost].slice(-COSTS_KEPT),
+    input: agent.input + prompt,
+    output: agent.output + (usage?.output_tokens ?? 0),
+  }))
 }
 
 /** The history with turn `done.turnId` finished; an id it never opened is ignored. */
@@ -116,25 +255,38 @@ export const closeTurn = (
     ? mapTurn(h, done.turnId, turn => ({ ...turn, durationMs: done.durationMs, reason: done.reason }))
     : h
 
-/** The history after one more tool call; names past the cap are counted under `otros`. */
-export const addTool = (h: History, call: { name: string; ms: number; isError: boolean }): History => {
-  const named = h.tools.some(tool => tool.name === call.name)
-  const name = named || h.tools.filter(tool => tool.name !== OTHERS).length < TOOL_CAP ? call.name : OTHERS
-  const known = h.tools.some(tool => tool.name === name)
+/** The history after one more tool call, counted for the session and for the agent that made it. */
+export const addTool = (
+  h: History,
+  call: { name: string; ms: number; isError: boolean; agentId?: string },
+): History => {
+  const counted = { ...h, tools: counting(h.tools, call) }
+  if (call.agentId === undefined || !counted.agents.some(agent => agent.id === call.agentId)) return counted
 
-  const bump = (tool: { name: string; count: number; errors: number; totalMs: number }) => ({
+  // The agent's own count, and its call is over.
+  return mapAgent(counted, call.agentId, agent => {
+    const { busy: _, ...idle } = agent
+
+    return { ...idle, tools: counting(agent.tools, call) }
+  })
+}
+
+// A tool list after one more call; names past the cap are counted under `otros`.
+const counting = (tools: readonly ToolStat[], call: { name: string; ms: number; isError: boolean }): ToolStat[] => {
+  const named = tools.some(tool => tool.name === call.name)
+  const name = named || tools.filter(tool => tool.name !== OTHERS).length < TOOL_CAP ? call.name : OTHERS
+  const known = tools.some(tool => tool.name === name)
+
+  const bump = (tool: ToolStat): ToolStat => ({
     ...tool,
     count: tool.count + 1,
     errors: tool.errors + (call.isError ? 1 : 0),
     totalMs: tool.totalMs + Math.max(0, call.ms),
   })
 
-  return {
-    ...h,
-    tools: known
-      ? h.tools.map(tool => (tool.name === name ? bump(tool) : tool))
-      : [...h.tools, bump({ name, count: 0, errors: 0, totalMs: 0 })],
-  }
+  return known
+    ? tools.map(tool => (tool.name === name ? bump(tool) : tool))
+    : [...tools, bump({ name, count: 0, errors: 0, totalMs: 0 })]
 }
 
 /**

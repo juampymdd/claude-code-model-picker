@@ -1,10 +1,12 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { addStep, addTool, closeTurn, EMPTY, openTurn } from './history'
+import { addStep, addTool, closeAgent, closeTurn, EMPTY, openAgent, openTurn, startTool, syncAgents } from './history'
 import { FAMILIES, latest, pickOfId, pickOfName, pickOfText } from './models'
 import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
+import { liveAgents } from './rows'
+import type { LiveProps } from './rows'
 import { priceLabel, statsLine, tally } from './stats'
 import { selfUpdate } from './update'
 import type { Host } from './update'
@@ -27,8 +29,16 @@ const open = atom({ plugin: 'model-picker', key: 'open' } as const, '')
 // What the API reported of the session's responses; null before the first.
 const stats = atom({ plugin: 'model-picker', key: 'stats' } as const, null)
 // What the stats pane charts: the session's turns, models and tools, and its tab.
-const history = atom({ plugin: 'model-picker', key: 'history' } as const, EMPTY)
+const history = atom({ plugin: 'model-picker', key: 'record' } as const, EMPTY)
 const tabOf = atom({ plugin: 'model-picker', key: 'tab' } as const, 'costo')
+// Whether the agents tab lists the finished ones.
+const showDone = atom({ plugin: 'model-picker', key: 'showDone' } as const, true)
+// When the model was last switched, while its chip is still lit; 0 otherwise.
+const flash = atom({ plugin: 'model-picker', key: 'flash' } as const, 0)
+
+const FLASH_MS = 600
+const AGENT_POLL_MS = 2000
+const FLASH_FILL = '#FFFFFF'
 
 const OPEN = { id: PANE, title: 'Estadísticas', focus: true, closeOnEscape: true, columns: 64 } as const
 
@@ -78,6 +88,30 @@ const switchTo = async ($: EngineInterface, target: Pick): Promise<void> => {
   await update($, choice, () => (isOwn ? 'auto' : target.version.model))
   await update($, open, () => '')
   $.ui.invalidate('ui.render')
+
+  // The chip lights up for a moment; a switch is done whether or not it does.
+  try {
+    const at = await $.clock.now()
+    await update($, flash, () => at)
+    $.clock.after(FLASH_MS, () => void update($, flash, was => (was === at ? 0 : was)))
+  } catch {
+    // no clock, no light
+  }
+}
+
+// Brings the agents the pane lists up to Claude Code's own list, while any is at work.
+const pollAgents = async ($: EngineInterface): Promise<void> => {
+  try {
+    const data = await read($, history)
+    if (liveAgents(data) === 0) return
+
+    const list = await $.agent.list()
+    const now = await $.clock.now()
+    const next = syncAgents(data, list, now)
+    if (next !== data) await update($, history, was => syncAgents(was, list, now))
+  } catch {
+    // the list is a refinement: the pane keeps what the hooks saw
+  }
 }
 
 // The host as the self-update reaches it.
@@ -103,6 +137,12 @@ export const register: Register = (on, options) => {
 
     // Left running: the session does not wait on the network to start.
     if (options.autoUpdate !== false) void selfUpdate(hostOf($))
+
+    try {
+      $.clock.every(AGENT_POLL_MS, () => void pollAgents($))
+    } catch {
+      // without the timer the agents still show what the hooks saw of them
+    }
 
     return next(e)
   })
@@ -150,7 +190,7 @@ export const register: Register = (on, options) => {
     // The pane's record is a side note: it must never fail the request.
     try {
       const now = await $.clock.now()
-      await update($, history, was => addStep(was, { turnId: e.turnId, isMain }, usage, now))
+      await update($, history, was => addStep(was, { turnId: e.turnId, isMain, agentId: e.agentId }, usage, now))
     } catch {
       // the request already answered; its chart just misses a point
     }
@@ -172,21 +212,53 @@ export const register: Register = (on, options) => {
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
 
-    if (e.agentId === undefined) {
-      try {
+    try {
+      const agentId = e.agentId
+      if (agentId === undefined) {
         await update($, history, was => closeTurn(was, { turnId: e.turnId, durationMs: e.durationMs, reason: e.reason }))
-      } catch {
-        // the answer is already out
+      } else {
+        const now = await $.clock.now()
+        await update($, history, was => closeAgent(was, { id: agentId, reason: e.reason }, now))
       }
+    } catch {
+      // the answer is already out
     }
 
     return done
   })
 
+  // A spawned agent is listed from the start, under the name its spawn gave it.
+  on('agent.spawn', async ($, e, next) => {
+    const spawned = await next(e)
+
+    try {
+      const id = spawned.deny === undefined ? spawned.agentId : undefined
+      if (id !== undefined) {
+        const now = await $.clock.now()
+        await update($, history, was =>
+          openAgent(was, { id, type: e.subagentType, description: e.description, parentId: e.parentAgentId, model: spawned.model }, now),
+        )
+      }
+    } catch {
+      // the agent runs all the same
+    }
+
+    return spawned
+  }).catch(($, e, next) => next(e))
+
   // Every tool call of every loop is timed and counted, and none is ever changed.
   on('tool.call', async ($, e, next) => {
     const started = await $.clock.now()
+    const agentId = e.agentId
     let isError = false
+
+    if (agentId !== undefined) {
+      try {
+        await update($, history, was => startTool(was, agentId, e.tool, started))
+      } catch {
+        // the call goes on unlisted
+      }
+    }
 
     try {
       const ran = await next(e)
@@ -200,7 +272,7 @@ export const register: Register = (on, options) => {
     } finally {
       try {
         const ms = (await $.clock.now()) - started
-        await update($, history, was => addTool(was, { name: e.tool, ms, isError }))
+        await update($, history, was => addTool(was, { name: e.tool, ms, isError, agentId }))
       } catch {
         // the call is over; only its count is lost
       }
@@ -220,22 +292,38 @@ export const register: Register = (on, options) => {
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const data = await read($, history)
     const current = await read($, tabOf)
+    const isShowingDone = await read($, showDone)
     const now = await $.clock.now()
     const usage = await sessionUsage($)
 
+    const parts = $.ui.resolve(e)
+
     return drawPane(
       h,
-      $.ui.resolve(e),
-      { columns: e.props.bodyColumns, tab: current, history: data, now, usage },
-      next => update($, tabOf, () => next),
+      parts,
+      { columns: e.props.bodyColumns, tab: current, history: data, now, showDone: isShowingDone, usage },
+      {
+        onTab: next => update($, tabOf, () => next),
+        onShowDone: show => update($, showDone, () => show),
+      },
+      // Where the surface runs surface modules, the rows are drawn in motion.
+      'Client' in parts ? props => <parts.Client key="live" module="./live.tsx" props={props} /> : undefined,
     )
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
 
-    const { Box, Button, Text } = $.ui.resolve(e)
+    const parts = $.ui.resolve(e)
+    const { Box, Button, Text } = parts
     const own = await pickOfSession($)
+    const isLit = (await read($, flash)) !== 0
+    const working = liveAgents(await read($, history))
+    const beat: LiveProps = {
+      tab: 'band',
+      now: 0,
+      rows: [{ segs: [{ text: '●', alt: '◉', fx: 'pulse', color: 'success' }, { text: `${working} `, color: 'success' }] }],
+    }
     const override = pickOfId(await read($, choice))
     const picked = override ?? own
     const shown = await read($, open)
@@ -280,7 +368,7 @@ export const register: Register = (on, options) => {
               }
             >
               {isActive ? (
-                <Text backgroundColor={family.color} color={INK} bold>
+                <Text backgroundColor={isLit ? FLASH_FILL : family.color} color={INK} bold>
                   {text}
                 </Text>
               ) : (
@@ -291,6 +379,12 @@ export const register: Register = (on, options) => {
           <Button key="stats" plain dimColor onPress={() => togglePane($)}>
             <Text>{hasNames ? ' ▦ stats ' : ' ▦ '}</Text>
           </Button>
+          {working > 0 &&
+            ('Client' in parts ? (
+              <parts.Client key="agents" module="./live.tsx" props={beat} />
+            ) : (
+              <Text color="success">●{working} </Text>
+            ))}
           {columns >= NOTE_COLUMNS && picked !== undefined && (
             <Text color={picked.family.color} italic>
               {'  '}

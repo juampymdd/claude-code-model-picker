@@ -4,10 +4,17 @@ import {
   activity,
   addStep,
   addTool,
+  AGENT_CAP,
+  closeAgent,
   closeTurn,
+  COSTS_KEPT,
   EMPTY,
+  isDone,
+  openAgent,
   openTurn,
   pace,
+  startTool,
+  syncAgents,
   TOOL_CAP,
   TURN_CAP,
 } from '../hooks/history'
@@ -133,4 +140,94 @@ test('the cost parts add up to the cost of a response', () => {
 
   expect(near(parts.input + parts.output + parts.cacheRead + parts.cacheWrite, 12)).toBe(near(costOf(u), 12))
   expect(costParts(usage('some-other-model', { input_tokens: 1 }))).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 })
+})
+
+test('an agent opens once under the name its spawn gave it, and a step it missed opens it unnamed', () => {
+  const seed = { id: 'a', type: 'Explore', description: 'buscar', parentId: 'p', model: 'claude-haiku-5-5-20260101' }
+  const opened = openAgent(EMPTY, seed, 100)
+
+  expect(opened.agents).toHaveLength(1)
+  expect(opened.agents[0]).toMatchObject({ type: 'Explore', description: 'buscar', parentId: 'p', model: 'claude-haiku-5-5', startedAt: 100, status: 'running' })
+  expect(openAgent(opened, { id: 'a' }, 999).agents[0]).toMatchObject({ type: 'Explore', startedAt: 100 })
+
+  const lazy = addStep(EMPTY, { turnId: 't', isMain: false, agentId: 'z' }, usage('claude-opus-5-5', { input_tokens: 1 }), 50)
+  expect(lazy.agents[0]).toMatchObject({ id: 'z', type: 'agente', description: '', steps: 1, startedAt: 50 })
+})
+
+test("an agent's steps add to its cost, tokens and model, and its sparkline keeps the latest", () => {
+  let h = openAgent(EMPTY, { id: 'a' }, 0)
+  for (let i = 0; i < COSTS_KEPT + 3; i += 1) {
+    h = addStep(h, { turnId: 't', isMain: false, agentId: 'a' }, usage('claude-haiku-5-5', { input_tokens: 1_000_000, output_tokens: 1000 }), i)
+  }
+  const agent = h.agents[0]
+
+  expect(agent).toMatchObject({ steps: COSTS_KEPT + 3, model: 'claude-haiku-5-5', input: (COSTS_KEPT + 3) * 1_000_000 })
+  expect(agent?.costs).toHaveLength(COSTS_KEPT)
+  expect(near(agent?.cost)).toBe(near((COSTS_KEPT + 3) * (0.1 + 0.0005)))
+  // The session's totals count them too.
+  expect(near(h.total.agentCost)).toBe(near(agent?.cost))
+})
+
+test('a tool call marks its agent busy, then counts for it and for the session', () => {
+  let h = openAgent(EMPTY, { id: 'a' }, 0)
+  h = startTool(h, 'a', 'Bash', 10)
+  expect(h.agents[0]?.busy).toEqual({ tool: 'Bash', since: 10 })
+
+  h = addTool(h, { name: 'Bash', ms: 500, isError: true, agentId: 'a' })
+  expect(h.agents[0]?.busy).toBeUndefined()
+  expect(h.agents[0]?.tools).toEqual([{ name: 'Bash', count: 1, errors: 1, totalMs: 500 }])
+  expect(h.tools).toEqual([{ name: 'Bash', count: 1, errors: 1, totalMs: 500 }])
+
+  // A call of the main loop, or of an agent never seen, only counts for the session.
+  const main = addTool(h, { name: 'Read', ms: 1, isError: false })
+  expect(main.agents[0]?.tools).toHaveLength(1)
+  expect(addTool(h, { name: 'Read', ms: 1, isError: false, agentId: 'ghost' }).agents).toHaveLength(1)
+})
+
+test('an agent ends as its turn did, stops being busy, and runs again if it works again', () => {
+  const busy = startTool(openAgent(EMPTY, { id: 'a' }, 0), 'a', 'Bash', 5)
+
+  const done = closeAgent(busy, { id: 'a', reason: 'answer' }, 90)
+  expect(done.agents[0]).toMatchObject({ status: 'completed', endedAt: 90 })
+  expect(done.agents[0]?.busy).toBeUndefined()
+  expect(isDone(done.agents[0]!)).toBe(true)
+
+  expect(closeAgent(busy, { id: 'a', reason: 'aborted' }, 1).agents[0]?.status).toBe('killed')
+  expect(closeAgent(busy, { id: 'a', reason: 'error' }, 1).agents[0]?.status).toBe('failed')
+  expect(closeAgent(busy, { id: 'nope', reason: 'answer' }, 1)).toBe(busy)
+
+  const again = addStep(done, { turnId: 't2', isMain: false, agentId: 'a' }, null, 100)
+  expect(again.agents[0]?.status).toBe('running')
+  expect(again.agents[0]?.endedAt).toBeUndefined()
+})
+
+test("Claude Code's own list names, updates and ends the agents, and changes nothing when it agrees", () => {
+  const h = addStep(EMPTY, { turnId: 't', isMain: false, agentId: 'a' }, null, 10)
+  const listed = [{ id: 'a', type: 'Plan', description: 'diseñar', status: 'running' as const, parentId: 'root' }]
+
+  const named = syncAgents(h, listed, 20)
+  expect(named.agents[0]).toMatchObject({ type: 'Plan', description: 'diseñar', parentId: 'root', status: 'running', steps: 1 })
+  expect(syncAgents(named, listed, 30)).toBe(named)
+
+  const over = syncAgents(named, [{ ...listed[0]!, status: 'failed' as const }], 40)
+  expect(over.agents[0]).toMatchObject({ status: 'failed', endedAt: 40 })
+  expect(syncAgents(over, [{ ...listed[0]!, status: 'failed' as const }], 99)).toBe(over)
+
+  // One the list has and the hooks never saw is added; one the list lacks is left as it was.
+  const more = syncAgents(named, [{ id: 'b', type: 'Explore', description: 'x', status: 'waiting' as const }], 50)
+  expect(more.agents.map(agent => agent.id)).toEqual(['a', 'b'])
+  expect(more.agents[0]).toBe(named.agents[0])
+})
+
+test('past the cap the agents finished longest ago go first', () => {
+  let h = EMPTY
+  for (let i = 0; i < AGENT_CAP; i += 1) {
+    h = closeAgent(openAgent(h, { id: `done${i}` }, i), { id: `done${i}`, reason: 'answer' }, 1000 + i)
+  }
+  h = openAgent(h, { id: 'live' }, 5000)
+
+  expect(h.agents).toHaveLength(AGENT_CAP)
+  expect(h.agents.some(agent => agent.id === 'done0')).toBe(false)
+  expect(h.agents.some(agent => agent.id === 'done1')).toBe(true)
+  expect(h.agents.some(agent => agent.id === 'live')).toBe(true)
 })

@@ -7,7 +7,11 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 ### Agregado
 
 - Panel de estadísticas de la sesión, con gráficos hechos con caracteres de bloque: costo y tokens por turno, uso por modelo, herramientas (cantidad, errores y tiempo) y ritmo (duración, pasos y actividad).
-- Botón `▦ stats` al final de la banda y subcomando `/modelo stats` para abrir y cerrar el panel; pestañas con clic o con las teclas `1` a `4`.
+- Pestaña **Agentes**: los subagentes de la sesión en vivo, con su estado, tipo, descripción, tiempo, costo, modelo, herramientas usadas y la que tienen en curso.
+- Animaciones en la terminal y la app de escritorio: tiempos que corren, estado que late, spinner de la herramienta en curso, barras y medidor de contexto que crecen, columnas que suben, agentes que entran deslizándose y se atenúan al terminar.
+- Medidor de contexto en el encabezado del panel (verde, ámbar desde 70 %, rojo desde 90 %).
+- En la banda: un `●` con la cantidad de agentes trabajando al lado del botón de estadísticas, y un destello en el chip al cambiar de modelo.
+- Botón `▦ stats` al final de la banda y subcomando `/modelo stats` para abrir y cerrar el panel; pestañas con clic o con las teclas `1` a `5`.
 - Un `/clear` reinicia los números de la sesión.
 
 ### Cambiado

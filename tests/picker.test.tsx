@@ -1,6 +1,6 @@
 import type { On } from 'claude-code'
 import type { Engine } from 'claude-code/testing'
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 const BAND = {
   plugin: 'model-picker',
@@ -198,5 +198,67 @@ test('the band has a stats button that shrinks to its glyph, and /modelo stats t
   expect(opened).toEqual(['model-picker-stats', 'model-picker-stats'])
   expect((await $.command.run(run(''))).text).toMatch(/^Modelo: Opus 5\.5/)
 
+  await ui.unmount()
+})
+
+test('the band beats beside the stats button while an agent works, and not after', async ($, on) => {
+  stubSession(on, 'claude-opus-5-5')
+  mock.clock(on)
+  on('agent.spawn', (_$, e) => ({ model: e.parentModel, agentId: `agent-${e.tool_use_id}` }))
+  on('turn.complete', () => ({ text: '' }))
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect(await ui.find({ key: 'agents' })).toBeUndefined()
+
+  await $.agent.spawn({
+    tool_use_id: 'beat',
+    prompt: 'go',
+    description: 'explorar',
+    subagentType: 'Explore',
+    provider: { plugin: 'engine', tier: 'core' },
+    parentModel: 'claude-opus-5-5',
+    permissionMode: 'default',
+    isFork: false,
+  } as unknown as Parameters<Engine['agent']['spawn']>[0])
+
+  expect(await ui.find({ key: 'agents' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /^1 $/, in: 'agents' })).toBeDefined()
+
+  await $.turn.complete({ answer: '', durationMs: 5, isAborted: false, turnId: 'x', agentId: 'agent-beat', reason: 'answer' })
+  expect(await ui.find({ key: 'agents' })).toBeUndefined()
+
+  await ui.unmount()
+})
+
+test('a switch still works with no clock to light the chip by', async ($, on) => {
+  stubSession(on, 'claude-opus-5-5')
+  const sent: string[] = []
+  stubStep(on, sent)
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await ui.press({ key: 'sonnet' })
+  expect(await ui.find({ type: 'Text', text: /▲ Sonnet 5\.5 ▾/ })).toBeDefined()
+  await step($)
+  expect(sent).toEqual(['claude-sonnet-5-5'])
+
+  await $.command.run(run('auto'))
+  await ui.unmount()
+})
+
+test('the chip lights up on a switch and goes back after a moment', async ($, on) => {
+  stubSession(on, 'claude-opus-5-5')
+  const clock = mock.clock(on, { now: 5000 })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  await ui.press({ key: 'haiku' })
+
+  const lit = await ui.find({ type: 'Text', text: /● Haiku 5\.5 ▾/ })
+  expect(lit?.props?.backgroundColor).toBe('#FFFFFF')
+
+  await clock.advance(700)
+  const settled = await ui.find({ type: 'Text', text: /● Haiku 5\.5 ▾/ })
+  expect(settled?.props?.backgroundColor).toBe('#34D399')
+
+  await $.command.run(run('auto'))
   await ui.unmount()
 })
