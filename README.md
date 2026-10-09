@@ -49,6 +49,7 @@ Con el dropdown de versiones abierto:
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
 - **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
 - **Panel de estadísticas** animado, con gráficos de costo, modelos, herramientas y ritmo de la sesión, y los **agentes en vivo**: qué hace cada uno, con qué modelo y cuánto gasta.
+- **Pong y Space Invaders** en el panel, para cuando Claude trabaja solo (hay que [habilitarlos](#6--juegos)).
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
 - **Se actualiza solo**: una vez por día busca una versión nueva y la instala. Se puede [apagar](#apagarlo).
 
@@ -150,6 +151,7 @@ Después, en una sesión nueva, escribí `/modelo`. Si responde `Modelo: Opus 5.
 | `/modelo opus 4.8` | Cambia a esa versión puntual |
 | `/modelo auto` | Vuelve al modelo de la sesión |
 | `/modelo stats` | Abre o cierra el [panel de estadísticas](#el-panel-de-estadísticas) |
+| `/modelo juegos` | Habilita o deshabilita la pestaña de [juegos](#6--juegos) del panel |
 
 Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -182,10 +184,10 @@ Un panel con gráficos de toda la sesión. Se abre y se cierra con el botón **`
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   (6: Juegos)
 ```
 
-Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `5`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
+Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `5` (y `6` si los juegos están habilitados). Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
 
 ### 1 · Costo
 
@@ -278,6 +280,68 @@ Cada agente ocupa dos filas. Arriba: estado, tipo, descripción, tiempo y costo.
 - Primero van los que corren (el más nuevo arriba) y después los últimos 10 terminados; **`ocultar terminados`** los saca de la lista.
 - Mientras hay agentes trabajando, al lado del botón `▦ stats` de la banda late un `●` con la cantidad, así te enterás sin abrir el panel.
 
+### 6 · Juegos
+
+Para los ratos en que Claude trabaja solo: **Pong** y **Space Invaders** dentro del panel. La pestaña viene apagada.
+
+**Habilitarla:** `/modelo juegos` la prende o apaga para la sesión. Para tenerla siempre, `/config` → **Juegos en el panel** (`model-picker.games`).
+
+```
+ 6: Juegos     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
+```
+
+Se elige el juego con un clic. Para jugar con el teclado hay que **hacer clic sobre el juego** (así toma el foco); `Esc` se lo devuelve al prompt. El mouse funciona siempre.
+
+**Pong**, contra la máquina, a 11 puntos. Tu paleta lleva el color del modelo activo.
+
+```
+PONG  a 11 puntos
+                          7        ▀         3
+  █                               ▄
+  █                                      ▀
+                                  ▀                      █
+↑↓ o mouse mueven · espacio pausa · r reinicia
+```
+
+| Tecla | Acción |
+| --- | --- |
+| `↑` `↓` o `w` `s` | Mueven la paleta |
+| Mouse | La paleta sigue al puntero; un clic empieza |
+| `espacio`, `p` o `Enter` | Empieza, pausa y sigue |
+| `r` | Partida nueva |
+
+La pelota acelera con cada golpe y sale en el ángulo de donde pega en la paleta. El récord es la mayor diferencia de puntos con la que ganaste.
+
+**Space Invaders**: tres filas de invasores que bajan cada vez más rápido, escudos que se gastan y tres vidas.
+
+```
+PUNTOS 240   ◆◆◆   OLEADA 1
+   ▚▞ ▚▞ ▚▞    ▚▞ ▚▞ ▚▞ ▚▞
+   ▛▜ ▛▜ ▛▜ ▛▜ ▛▜    ▛▜ ▛▜
+   ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟
+             ╏
+        ███         █▒█         ███
+                │
+               ▟█▙
+←→ o mouse mueven · espacio o clic dispara · p pausa · r reinicia
+```
+
+| Tecla | Acción |
+| --- | --- |
+| `←` `→` o `a` `d` | Mueven la nave |
+| Mouse | La nave sigue al puntero; un clic dispara |
+| `espacio` | Dispara (un disparo a la vez) |
+| `p` o `Enter` | Pausa y sigue |
+| `r` | Partida nueva |
+
+Las filas valen 30, 20 y 10 puntos. Al limpiar la pantalla llega otra oleada, más rápida. Se termina al perder las tres vidas o si los invasores llegan a la nave.
+
+- Los récords se guardan entre sesiones.
+- La terminal no avisa cuando se suelta una tecla: cada pulsación mueve un paso (mantenerla apretada repite). Con el mouse el movimiento es continuo.
+- Mientras el juego tiene el foco, las teclas `1` a `6` de las pestañas pueden no responder: `Esc` primero.
+- El juego no sabe si perdió el foco: si cambiás de pestaña o cerrás el panel sin pausar, se detiene porque deja de dibujarse; al volver sigue donde estaba.
+- Necesita un panel de 40 columnas o más. Los juegos corren en la terminal y en la app de escritorio.
+
 ### Animaciones
 
 En la terminal y en la app de escritorio el panel se mueve; en las demás superficies se dibuja quieto, con los mismos datos.
@@ -342,6 +406,7 @@ El mod registra estos hooks:
 | `agent.spawn` | Anota cada agente que se lanza, con su tipo y descripción |
 | `session.end` | Reinicia los números con un `/clear` |
 | `ui.render` | Dibuja la banda arriba del prompt y el panel de estadísticas |
+| `ui.message` | Recibe el puntaje de una partida terminada y guarda el récord |
 
 Además, en `session.start` lanza en segundo plano la búsqueda de versión nueva (ver [Actualizar](#actualizar)) y un temporizador que cada 2 segundos pone al día el estado de los agentes mientras alguno trabaja.
 
@@ -491,6 +556,11 @@ hooks/
   rows.ts            cada pestaña del panel como filas de texto
   paint.tsx          dibuja las filas, quietas o en movimiento
   live.tsx           módulo de superficie: el reloj de las animaciones
+  games.tsx          módulo de superficie: los juegos (reloj, teclas, mouse)
+  pong.ts            Pong
+  invaders.ts        Space Invaders
+  pixels.ts          pantalla de medios bloques para los juegos
+  screens.ts         cómo se dibuja cada juego
   pane.tsx           las pestañas y el armado del panel
   update.ts          la actualización automática
 types/
@@ -501,6 +571,8 @@ tests/
   charts.test.ts     los gráficos
   history.test.ts    el historial
   motion.test.ts     el motor de animación y la lista de agentes
+  games.test.ts      las reglas de los juegos
+  arcade.test.tsx    los juegos corriendo en el panel
   pane.test.tsx      el panel de estadísticas
   update.test.ts     la actualización automática
 ```

@@ -2,7 +2,7 @@
 // them marked to move (a clock, a spinner, a bar that grows). `paint.tsx`
 // draws them, still or animated; nothing here touches the engine.
 
-import type { AgentStat, History, Tab, Turn } from '../types'
+import type { AgentStat, Best, Game, History, Tab, Turn } from '../types'
 import { cell, duration, hbar, pct, sparkline, stack } from './charts'
 import { activity, isDone, pace } from './history'
 import { pickOfId } from './models'
@@ -47,6 +47,10 @@ export type View = {
   history: History
   now: number
   showDone: boolean
+  // The games tab: whether it is offered, which game it shows, the best scores.
+  games?: boolean
+  game?: Game
+  best?: Best
   // From `$.session.usage()`: when the session started, how full its context is, Claude Code's own cost.
   usage?: { startedAt?: number; percent?: number; usd?: number }
 }
@@ -373,6 +377,8 @@ const TABS: Readonly<Record<Tab, (view: View) => Row[]>> = {
   tools: toolRows,
   ritmo: paceRows,
   agentes: agentRows,
+  // The games draw themselves (`games.tsx`).
+  juegos: () => [],
 }
 
 /** The chosen tab's rows; a session with nothing yet says so (the agents tab says its own). */
@@ -380,7 +386,7 @@ export const rowsFor = (view: View): Row[] => {
   const h = view.history
   const isEmpty = h.total.steps === 0 && h.tools.length === 0 && h.agents.length === 0
 
-  return isEmpty && view.tab !== 'agentes' ? [line(dim(WAITING))] : TABS[view.tab](view)
+  return isEmpty && view.tab !== 'agentes' && view.tab !== 'juegos' ? [line(dim(WAITING))] : TABS[view.tab](view)
 }
 
 /** How many agents are at work now. */

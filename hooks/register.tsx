@@ -7,6 +7,7 @@ import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
 import { liveAgents } from './rows'
 import type { LiveProps } from './rows'
+import type { Best } from '../types'
 import { paint } from './paint'
 import { priceLabel, statsSegs, tally } from './stats'
 import { selfUpdate } from './update'
@@ -36,6 +37,14 @@ const tabOf = atom({ plugin: 'model-picker', key: 'tab' } as const, 'costo')
 const showDone = atom({ plugin: 'model-picker', key: 'showDone' } as const, true)
 // When the model was last switched, while its chip is still lit; 0 otherwise.
 const flash = atom({ plugin: 'model-picker', key: 'flash' } as const, 0)
+
+// The games tab: whether it is offered this session, the game shown, the best scores.
+const gamesOn = atom({ plugin: 'model-picker', key: 'games' } as const, false)
+const gameOf = atom({ plugin: 'model-picker', key: 'game' } as const, 'pong')
+const best = atom({ plugin: 'model-picker', key: 'best' } as const, { pong: 0, invaders: 0 })
+
+// The key the best scores are kept under between sessions.
+const BEST_KEY = 'games.best'
 
 const FLASH_MS = 600
 const AGENT_POLL_MS = 2000
@@ -139,6 +148,16 @@ export const register: Register = (on, options) => {
     // Left running: the session does not wait on the network to start.
     if (options.autoUpdate !== false) void selfUpdate(hostOf($))
 
+    // The games are offered when the option says so; their best scores come from the store.
+    try {
+      if (options.games === true) await update($, gamesOn, () => true)
+
+      const kept = (await $.store.get(BEST_KEY)) as Partial<Best> | undefined
+      if (kept !== undefined) await update($, best, was => ({ pong: Number(kept.pong ?? was.pong), invaders: Number(kept.invaders ?? was.invaders) }))
+    } catch {
+      // no store: the scores start at zero
+    }
+
     try {
       $.clock.every(AGENT_POLL_MS, () => void pollAgents($))
     } catch {
@@ -155,6 +174,14 @@ export const register: Register = (on, options) => {
       const own = await pickOfSession($)
 
       return { text: `Modelo: ${own ? `${own.family.label} ${own.version.version}` : 'desconocido'}. Uso: /${COMMAND} ${NAMES} [versión]` }
+    }
+
+    if (text === 'juegos') {
+      const isOn = !(await read($, gamesOn))
+      await update($, gamesOn, () => isOn)
+      if (!isOn) await update($, tabOf, was => (was === 'juegos' ? 'costo' : was))
+
+      return { text: `Juegos: ${isOn ? 'habilitados (pestaña 6 del panel de estadísticas)' : 'deshabilitados'}` }
     }
 
     if (text === 'stats') {
@@ -292,24 +319,63 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const data = await read($, history)
-    const current = await read($, tabOf)
+    const hasGames = await read($, gamesOn)
+    const picked = await read($, tabOf)
+    const current = picked === 'juegos' && !hasGames ? 'costo' : picked
+    const game = await read($, gameOf)
     const isShowingDone = await read($, showDone)
     const now = await $.clock.now()
     const usage = await sessionUsage($)
-
     const parts = $.ui.resolve(e)
+    // The player's color is the active model's.
+    const color = (pickOfId(await read($, choice)) ?? (await pickOfSession($)))?.family.color ?? 'claude'
+    const room = { game, color, columns: e.props.bodyColumns, rows: e.props.scroll.bodyRows }
 
     return drawPane(
       h,
       parts,
-      { columns: e.props.bodyColumns, tab: current, history: data, now, showDone: isShowingDone, usage },
+      {
+        columns: e.props.bodyColumns,
+        tab: current,
+        history: data,
+        now,
+        showDone: isShowingDone,
+        usage,
+        games: hasGames,
+        game,
+        best: await read($, best),
+      },
       {
         onTab: next => update($, tabOf, () => next),
         onShowDone: show => update($, showDone, () => show),
+        onGame: next => update($, gameOf, () => next),
       },
-      // Where the surface runs surface modules, the rows are drawn in motion.
+      // Where the surface runs surface modules, the rows are drawn in motion and the games can run.
       'Client' in parts ? props => <parts.Client key="live" module="./live.tsx" props={props} /> : undefined,
+      'Client' in parts ? () => <parts.Client key="game" module="./games.tsx" props={room} /> : undefined,
     )
+  })
+
+  // A finished game posts its score: the best of each is kept, between sessions too.
+  on('ui.message', async ($, e, next) => {
+    const data = e.data as { game?: unknown; score?: unknown } | null
+    const game = data?.game
+    if (e.element !== 'game' || (game !== 'pong' && game !== 'invaders') || typeof data?.score !== 'number') return next(e)
+
+    const score = data.score
+    const was = await read($, best)
+
+    if (score > was[game]) {
+      const now = { ...was, [game]: score }
+      await update($, best, () => now)
+      try {
+        await $.store.set(BEST_KEY, now)
+      } catch {
+        // kept for the session all the same
+      }
+    }
+
+    return {}
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

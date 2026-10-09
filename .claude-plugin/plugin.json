@@ -13,6 +13,12 @@
       "title": "Actualización automática",
       "description": "Una vez por día, busca una versión nueva del mod en GitHub y la instala sola.",
       "default": true
+    },
+    "games": {
+      "type": "boolean",
+      "title": "Juegos en el panel",
+      "description": "Agrega al panel de estadísticas una pestaña con Pong y Space Invaders.",
+      "default": false
     }
   }
 }

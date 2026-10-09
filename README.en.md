@@ -32,6 +32,7 @@ With the version dropdown open:
 - **Instant switch**: the choice applies to the next request.
 - **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
 - **Animated stats pane** with charts of the session's cost, models, tools and pace, and the **agents, live**: what each one is doing, on which model and what it costs.
+- **Pong and Space Invaders** in the pane, for when Claude works by itself (they have to be [turned on](#6--juegos-games)).
 - **`/modelo` command** to do the same from the keyboard.
 - **Updates itself**: once a day it looks for a new version and installs it. It can be [turned off](#turning-it-off).
 
@@ -124,6 +125,7 @@ claude plugin list
 | `/modelo opus 4.8` | Switches to that exact version |
 | `/modelo auto` | Goes back to the session's model |
 | `/modelo stats` | Opens or closes the [stats pane](#the-stats-pane) |
+| `/modelo juegos` | Turns the pane's [games](#6--juegos-games) tab on or off |
 
 Families: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -156,10 +158,10 @@ A pane with charts of the whole session. Open and close it with the **`▦ stats
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   (6: Juegos)
 ```
 
-Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `5` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
+Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `5` keys (and `6` when the games are on). The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
 
 ### 1 · Costo (cost)
 
@@ -252,6 +254,68 @@ Each agent takes two rows. On top: state, type, description, time and cost. Belo
 - Running ones come first (newest on top), then the latest 10 finished; **`ocultar terminados`** ("hide finished") drops them from the list.
 - While agents are at work, a `●` with their count beats beside the band's `▦ stats` button, so you know without opening the pane.
 
+### 6 · Juegos (games)
+
+For when Claude is working by itself: **Pong** and **Space Invaders** inside the pane. The tab is off by default.
+
+**Turning it on:** `/modelo juegos` turns it on or off for the session. To have it always, `/config` → **Juegos en el panel** (`model-picker.games`).
+
+```
+ 6: Juegos     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
+```
+
+Pick the game with a click. To play with the keyboard you have to **click on the game** (that gives it the focus); `Esc` hands it back to the prompt. The mouse always works.
+
+**Pong**, against the machine, to 11 points. Your paddle takes the active model's color.
+
+```
+PONG  a 11 puntos
+                          7        ▀         3
+  █                               ▄
+  █                                      ▀
+                                  ▀                      █
+↑↓ o mouse mueven · espacio pausa · r reinicia
+```
+
+| Key | Action |
+| --- | --- |
+| `↑` `↓` or `w` `s` | Move the paddle |
+| Mouse | The paddle follows the pointer; a click starts |
+| `space`, `p` or `Enter` | Start, pause and resume |
+| `r` | New game |
+
+The ball speeds up with each hit and leaves at the angle of where it struck the paddle. The record (`récord`) is the largest margin you won by.
+
+**Space Invaders**: three rows of invaders coming down faster and faster, shields that wear out and three lives.
+
+```
+PUNTOS 240   ◆◆◆   OLEADA 1
+   ▚▞ ▚▞ ▚▞    ▚▞ ▚▞ ▚▞ ▚▞
+   ▛▜ ▛▜ ▛▜ ▛▜ ▛▜    ▛▜ ▛▜
+   ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟
+             ╏
+        ███         █▒█         ███
+                │
+               ▟█▙
+←→ o mouse mueven · espacio o clic dispara · p pausa · r reinicia
+```
+
+| Key | Action |
+| --- | --- |
+| `←` `→` or `a` `d` | Move the ship |
+| Mouse | The ship follows the pointer; a click fires |
+| `space` | Fires (one shot at a time) |
+| `p` or `Enter` | Pause and resume |
+| `r` | New game |
+
+The rows are worth 30, 20 and 10 points (`PUNTOS`). Clearing the screen brings another, faster wave (`OLEADA`). It ends when the three lives are gone or the invaders reach the ship.
+
+- Records are kept between sessions.
+- A terminal does not report key releases: each press moves one step (holding the key repeats). With the mouse the movement is continuous.
+- While the game has the focus, the `1` to `6` tab keys may not answer: `Esc` first.
+- The game cannot tell that it lost the focus: if you change tabs or close the pane without pausing, it stops because it is no longer drawn; back on it, it goes on from where it was.
+- It needs a pane of 40 columns or more. The games run in the terminal and the desktop app.
+
 ### Motion
 
 In the terminal and the desktop app the pane moves; on other surfaces it is drawn still, with the same data.
@@ -316,6 +380,7 @@ The mod registers these hooks:
 | `agent.spawn` | Notes each agent that is spawned, with its type and description |
 | `session.end` | Resets the numbers on a `/clear` |
 | `ui.render` | Draws the band above the prompt and the stats pane |
+| `ui.message` | Takes a finished game's score and keeps the record |
 
 Also, at `session.start` it starts the check for a new version in the background (see [Update](#update)) and a timer that every 2 seconds brings the agents' state up to date while any is at work.
 
@@ -465,6 +530,11 @@ hooks/
   rows.ts            each tab of the pane as rows of text
   paint.tsx          draws the rows, still or in motion
   live.tsx           surface module: the clock of the animations
+  games.tsx          surface module: the games (clock, keys, pointer)
+  pong.ts            Pong
+  invaders.ts        Space Invaders
+  pixels.ts          a screen of half blocks for the games
+  screens.ts         how each game is drawn
   pane.tsx           the tabs and the pane's assembly
   update.ts          the self-update
 types/
@@ -475,6 +545,8 @@ tests/
   charts.test.ts     the charts
   history.test.ts    the history
   motion.test.ts     the animation engine and the agents list
+  games.test.ts      the games' rules
+  arcade.test.tsx    the games running in the pane
   pane.test.tsx      the stats pane
   update.test.ts     the self-update
 ```
