@@ -1,5 +1,6 @@
 import type { Stats } from '../types'
 import { nameOfId, pickOfId } from './models'
+import type { Seg } from './rows'
 
 // What a response reports of itself: the API's token counts and model id.
 export type Usage = {
@@ -95,24 +96,58 @@ export const priceLabel = ([input, output]: readonly [number, number]): string =
   return `${one(input)}/${one(output)}`
 }
 
+const METER_CELLS = 6
+const SEPARATOR = ' · '
+
+const widthOf = (segs: readonly Seg[]): number =>
+  segs.reduce((all, seg) => all + (seg.fx === 'meter' ? (seg.width ?? 0) : [...seg.text].length), 0)
+
+const meterText = (seg: Seg): string => {
+  const width = seg.width ?? 0
+  const filled = Math.max(0, Math.min(width, Math.round(((seg.value ?? 0) / 100) * width)))
+
+  return '▰'.repeat(filled) + '▱'.repeat(width - filled)
+}
+
 /**
- * The stats row's parts, the most useful first, as many as fit `columns`
- * joined by ` · `; '' when there is nothing to show.
+ * The stats row as runs of text, the most useful part first, as many parts as
+ * fit `columns` with ` · ` between them: the model that answered, the costs,
+ * the effort, the tokens, then a meter of the cache's share and one of how
+ * full the context is (`context`, a percent, when known). Empty with nothing to show.
  */
-export const statsLine = (stats: Stats | null, isManual: boolean, columns: number): string => {
-  const parts: string[] = []
+export const statsSegs = (stats: Stats | null, isManual: boolean, columns: number, context?: number): Seg[] => {
+  const word = (text: string): Seg => ({ text, dim: true })
+  const parts: Seg[][] = []
 
   if (stats !== null) {
-    if (stats.answeredBy !== '') parts.push(`respondió ${nameOfId(stats.answeredBy)}`)
-    if (stats.sessionCost > 0) parts.push(`sesión ~${money(stats.sessionCost)}`)
-    if (stats.turnCost > 0) parts.push(`turno ~${money(stats.turnCost)}`)
-    if (stats.effort !== '') parts.push(`effort ${stats.effort}`)
-    if (stats.answeredBy !== '') parts.push(`${count(stats.input)}→${count(stats.output)} tok`)
-    if (stats.input > 0) parts.push(`cache ${Math.round((stats.cacheRead / stats.input) * 100)}%`)
+    if (stats.answeredBy !== '') parts.push([word(`respondió ${nameOfId(stats.answeredBy)}`)])
+    if (stats.sessionCost > 0) parts.push([word(`sesión ~${money(stats.sessionCost)}`)])
+    if (stats.turnCost > 0) parts.push([word(`turno ~${money(stats.turnCost)}`)])
+    if (stats.effort !== '') parts.push([word(`effort ${stats.effort}`)])
+    if (stats.answeredBy !== '') parts.push([word(`${count(stats.input)}→${count(stats.output)} tok`)])
+    if (stats.input > 0) {
+      const share = Math.round((stats.cacheRead / stats.input) * 100)
+      parts.push([
+        word('cache '),
+        { text: '', fx: 'meter', key: 'cache', value: share, width: METER_CELLS, isGoodHigh: true },
+        word(` ${share}%`),
+      ])
+    }
   }
-  if (isManual) parts.push('manual')
+  if (context !== undefined) {
+    const full = Math.round(context)
+    parts.push([word('contexto '), { text: '', fx: 'meter', key: 'context', value: full, width: METER_CELLS }, word(` ${full}%`)])
+  }
+  if (isManual) parts.push([word('manual')])
 
-  while (parts.length > 1 && [...parts.join(' · ')].length > columns) parts.pop()
+  const total = () => parts.reduce((all, part) => all + widthOf(part), 0) + Math.max(0, parts.length - 1) * SEPARATOR.length
+  while (parts.length > 1 && total() > columns) parts.pop()
 
-  return parts.join(' · ')
+  return parts.flatMap((part, index) => (index === 0 ? part : [word(SEPARATOR), ...part]))
 }
+
+/** The stats row as plain text, its meters drawn full. */
+export const statsLine = (stats: Stats | null, isManual: boolean, columns: number, context?: number): string =>
+  statsSegs(stats, isManual, columns, context)
+    .map(seg => (seg.fx === 'meter' ? meterText(seg) : seg.text))
+    .join('')

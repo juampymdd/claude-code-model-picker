@@ -1,7 +1,7 @@
 import { expect, test } from 'claude-code/testing'
 
 import { nameOfId, pickOfId, pickOfName } from '../hooks/models'
-import { costOf, count, money, priceLabel, statsLine, tally } from '../hooks/stats'
+import { costOf, count, money, priceLabel, statsLine, statsSegs, tally } from '../hooks/stats'
 import type { Usage } from '../hooks/stats'
 
 const usage = (model: string, over: Partial<Usage> = {}): Usage => ({
@@ -70,9 +70,28 @@ test('the stats row drops its last parts to fit, and is empty with nothing to sh
   )
   const whole = statsLine(stats, true, 200)
 
-  expect(whole).toBe('respondió Opus 5.5 · sesión ~$0.020 · turno ~$0.020 · effort medium · 10k→500 tok · cache 80% · manual')
+  expect(whole).toBe('respondió Opus 5.5 · sesión ~$0.020 · turno ~$0.020 · effort medium · 10k→500 tok · cache ▰▰▰▰▰▱ 80% · manual')
   expect(statsLine(stats, true, 40)).toBe('respondió Opus 5.5 · sesión ~$0.020')
   expect(statsLine(stats, true, 5)).toBe('respondió Opus 5.5')
   expect(statsLine(null, false, 200)).toBe('')
   expect(statsLine(null, true, 200)).toBe('manual')
+})
+
+test('the stats row carries a meter for the cache and one for the context, and drops them last', () => {
+  const stats = tally(
+    null,
+    { turnId: 'a' },
+    usage('claude-opus-5-5', { input_tokens: 2000, output_tokens: 500, cache_read_input_tokens: 8000 }),
+    true,
+  )
+  const segs = statsSegs(stats, false, 200, 38.4)
+  const meters = segs.filter(seg => seg.fx === 'meter')
+
+  expect(meters.map(seg => [seg.key, seg.value, seg.isGoodHigh === true])).toEqual([
+    ['cache', 80, true],
+    ['context', 38, false],
+  ])
+  expect(statsLine(stats, false, 200, 38.4)).toMatch(/cache ▰▰▰▰▰▱ 80% · contexto ▰▰▱▱▱▱ 38%$/)
+  expect(statsSegs(stats, false, 60, 38.4).some(seg => seg.fx === 'meter')).toBe(false)
+  expect(statsLine(null, false, 200, 50)).toBe('contexto ▰▰▰▱▱▱ 50%')
 })

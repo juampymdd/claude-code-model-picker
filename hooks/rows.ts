@@ -28,6 +28,8 @@ export type Seg = {
   // grow, meter: what tells one bar from another between draws.
   key?: string
   value?: number
+  // meter: a high value is the good one (cache served), so the colors run the other way.
+  isGoodHigh?: boolean
 }
 
 // A line of runs, or a column chart. A keyed line slides in when it first

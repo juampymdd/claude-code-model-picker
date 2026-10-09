@@ -182,7 +182,9 @@ const settle = (seg: Seg, props: LiveProps, anim: Anim | null): { text: string; 
 
       return {
         text: '▰'.repeat(filled) + '▱'.repeat(width - filled),
-        color: percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'success',
+        color: seg.isGoodHigh
+          ? percent >= 70 ? 'success' : percent >= 30 ? 'warning' : 'error'
+          : percent >= 90 ? 'error' : percent >= 70 ? 'warning' : 'success',
       }
     }
     default:

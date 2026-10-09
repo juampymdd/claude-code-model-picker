@@ -122,22 +122,24 @@ test('the stats row reports what the API said of the responses', async ($, on) =
     await $.command.run(run('auto'))
     const ui = await $.ui.mount({ ...BAND, surface })
     if (surface === 'terminal') {
-      expect(await ui.find({ type: 'Text', text: /tras la próxima respuesta/ })).toBeDefined()
+      expect(await ui.find({ type: 'Text', text: /tras la próxima respuesta/, in: 'datos' })).toBeDefined()
     }
 
     await ui.press({ key: 'haiku' })
     await step($, { effort: 'medium', turnId: surface })
 
     // Haiku 5.5: 0.1M in at $0.10 + 0.02M out at $0.50 + 0.9M cached at $0.01.
-    const row = await ui.find({ type: 'Text', text: /respondió Haiku 5\.5/ })
+    // The meter fills over a few frames.
+    await ui.advance(2000)
+    const row = await ui.find({ type: 'Text', text: /respondió Haiku 5\.5/, in: 'datos' })
     expect(row?.text).toMatch(/turno ~\$0\.029/)
     expect(row?.text).toMatch(/effort medium/)
     expect(row?.text).toMatch(/1\.0M→20k tok/)
-    expect(row?.text).toMatch(/cache 90%/)
+    expect(row?.text).toMatch(/cache ▰▰▰▰▰▱ 90%/)
     expect(row?.text).toMatch(/manual$/)
 
     await ui.press({ key: 'haiku' })
-    expect(await ui.find({ type: 'Text', text: /respondió/ })).toBeUndefined()
+    expect(await ui.find({ key: 'datos' })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /\$0\.10\/\$0\.50 por MTok/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /\$1\/\$5 por MTok/ })).toBeDefined()
     await ui.press({ key: 'haiku' })

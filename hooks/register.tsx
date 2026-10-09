@@ -7,7 +7,8 @@ import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
 import { liveAgents } from './rows'
 import type { LiveProps } from './rows'
-import { priceLabel, statsLine, tally } from './stats'
+import { paint } from './paint'
+import { priceLabel, statsSegs, tally } from './stats'
 import { selfUpdate } from './update'
 import type { Host } from './update'
 
@@ -332,7 +333,18 @@ export const register: Register = (on, options) => {
     const opened = FAMILIES.find(f => f.choice === shown)
     const seen = await read($, stats)
     // Before the session's first response there is nothing to report yet.
-    const line = seen === null ? WAITING : statsLine(seen, override !== undefined, columns - 2)
+    const facts: LiveProps = {
+      tab: 'band',
+      now: 0,
+      rows: [
+        {
+          segs:
+            seen === null
+              ? [{ text: WAITING, dim: true }]
+              : statsSegs(seen, override !== undefined, columns - 2, (await sessionUsage($))?.percent),
+        },
+      ],
+    }
 
     const chips = FAMILIES.map(family => {
       const isActive = picked?.family === family
@@ -411,11 +423,9 @@ export const register: Register = (on, options) => {
             </Box>
           )
         })}
-        {opened === undefined && line !== '' && (
+        {opened === undefined && (
           <Box marginLeft={2}>
-            <Text dimColor wrap="truncate-end">
-              {line}
-            </Text>
+            {'Client' in parts ? <parts.Client key="datos" module="./live.tsx" props={facts} /> : paint(h, parts, facts, null)}
           </Box>
         )}
       </Box>

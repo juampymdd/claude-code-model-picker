@@ -10,7 +10,7 @@
 
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5    razonamiento profundo
-  respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94%
+  respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38%
 ```
 
 With the version dropdown open:
@@ -132,7 +132,7 @@ Families: `fable`, `opus`, `sonnet`, `haiku`.
 Under the chips. Before the session's first response it reads `costo, tokens y cache: tras la próxima respuesta` ("cost, tokens and cache: after the next response"); then:
 
 ```
-respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94% · manual
+respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
 ```
 
 | Label | Meaning |
@@ -142,7 +142,8 @@ respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k�
 | `turno ~$0.031` | Estimated cost of the current turn (your last message and every call it triggered) |
 | `effort medium` | The reasoning effort the latest request asked for |
 | `48k→1.2k tok` | Tokens of the latest request: whole prompt (cache included) → response |
-| `cache 94%` | The share of that prompt served from cache. Drops to 0% right after a model switch |
+| `cache ▰▰▰▰▰▰ 94%` | The share of that prompt served from cache, with its meter: green when high, amber under 70%, red under 30%. Drops to 0% right after a model switch |
+| `contexto ▰▰▱▱▱▱ 38%` | How full the context window is: green, amber from 70%, red from 90% |
 | `manual` | A model is picked by hand, other than the session's |
 
 In a narrow terminal the row keeps its leftmost parts and drops the last ones. It is hidden while the dropdown is open.

@@ -8,7 +8,7 @@
 
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5    razonamiento profundo
-  respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94%
+  respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38%
 ```
 
 Con el dropdown de versiones abierto:
@@ -158,7 +158,7 @@ Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 Debajo de los chips hay una fila con lo que la API informó. Antes de la primera respuesta de la sesión dice `costo, tokens y cache: tras la próxima respuesta`; después:
 
 ```
-respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache 94% · manual
+respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
 ```
 
 | Dato | Qué es |
@@ -168,7 +168,8 @@ respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k�
 | `turno ~$0.031` | Costo estimado del turno actual (tu último mensaje y todas las llamadas que disparó) |
 | `effort medium` | Nivel de razonamiento con el que salió la última request |
 | `48k→1.2k tok` | Tokens de la última request: prompt completo (cache incluida) → respuesta |
-| `cache 94%` | Qué parte de ese prompt salió de la cache. Baja a 0% justo después de cambiar de modelo |
+| `cache ▰▰▰▰▰▰ 94%` | Qué parte de ese prompt salió de la cache, con su medidor: verde si es alta, ámbar bajo 70 %, rojo bajo 30 %. Baja a 0% justo después de cambiar de modelo |
+| `contexto ▰▰▱▱▱▱ 38%` | Cuán llena está la ventana de contexto: verde, ámbar desde 70 %, rojo desde 90 % |
 | `manual` | Hay un modelo elegido a mano, distinto al de la sesión |
 
 Si la terminal es angosta, la fila deja primero los datos de la izquierda y descarta los últimos. Mientras el dropdown está abierto, la fila se oculta.
