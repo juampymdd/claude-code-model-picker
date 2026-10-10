@@ -51,6 +51,7 @@ export type View = {
   games?: boolean
   game?: Game
   best?: Best
+  menu?: boolean
   // From `$.session.usage()`: when the session started, how full its context is, Claude Code's own cost.
   usage?: { startedAt?: number; percent?: number; usd?: number }
 }

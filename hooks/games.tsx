@@ -1,159 +1,113 @@
 // The stats pane's games: a surface module with a clock, keys and a pointer
-// of its own. It has no `$`: the hooks tell it which game and at what size,
-// and it posts a finished game's score back to them.
+// of its own. It has no `$`: the hooks tell it which game and in what room,
+// and it posts a finished game's score back to them. It knows no game: each
+// is a `GameDef` from the catalog.
 
 import type { ClientSurface, JsonValue } from 'claude-code'
 
-import { aimInvaders, fireInvaders, newInvaders, nudgeInvaders, stepInvaders, toggleInvaders } from './invaders'
-import type { Invaders } from './invaders'
+import { clamp, lcg, NO_DATA, pressKey, pressPointer, screenOf } from './arcade'
+import type { GameData, Playable } from './arcade'
+import { gameOf } from './catalog'
+import type { AnyGame } from './catalog'
 import { paint } from './paint'
-import { aimPong, newPong, nudgePong, pongScore, stepPong, togglePong, WIN } from './pong'
-import type { Pong } from './pong'
 import type { Seg } from './rows'
-import { drawInvaders, drawPong, invadersHud } from './screens'
 
-export type Game = 'pong' | 'invaders'
+// What the hooks hand the games: which one, the player's color, the room there is, the session's data.
+export type GameProps = { game: string; color: string; columns: number; rows: number; seed: number; data?: GameData }
 
-// What the hooks hand the games: which one, the player's color, the room there is.
-export type GameProps = { game: Game; color: string; columns: number; rows: number }
-
-type State = { pong?: Pong; invaders?: Invaders }
+// Each game's state, with the field it was made for.
+type Slot = { w: number; rows: number; s: Playable }
+// The games' states are held beside the instance (below); the surface's own
+// state only counts changes, which is what asks for a redraw.
+type State = number
 
 const TICK_MS = 50
-// Rows of the region above the field (the line of points) and below it (the keys).
-const ABOVE = 1
-const CHROME = 3
-const WIDEST = 60
-const NARROWEST = 40
-const KEY_STEP = 4
+// Rows of the pane the field cannot use: the header, the tabs, the menu, the game's own lines.
+const CHROME = 6
 
-const HINTS: Readonly<Record<Game, string>> = {
-  pong: '↑↓ o mouse mueven · espacio pausa · r reinicia',
-  invaders: '←→ o mouse mueven · espacio o clic dispara · p pausa · r reinicia',
-}
+// The field a game gets in the room given; undefined when it does not fit.
+const fieldOf = (def: AnyGame, props: GameProps): { w: number; rows: number } | undefined =>
+  props.columns < def.minW
+    ? undefined
+    : { w: Math.min(def.maxW, props.columns - 1), rows: clamp(props.rows - CHROME, def.minRows, def.maxRows) }
 
-const clamp = (n: number, low: number, high: number): number => Math.min(high, Math.max(low, n))
-
-// The field each game gets in the room given: cells across and rows down; undefined when it does not fit.
-const fieldOf = (props: GameProps): { w: number; rows: number } | undefined => {
-  if (props.columns < NARROWEST) return undefined
-
-  const most = props.game === 'pong' ? 18 : 20
-  const least = props.game === 'pong' ? 8 : 14
-
-  return { w: clamp(props.columns - 2, NARROWEST - 2, WIDEST), rows: clamp(props.rows - CHROME - 4, least, most) }
-}
-
-// The game in hand, made anew when there is none or the room changed.
-const pongOf = (state: State | undefined, props: GameProps): Pong | undefined => {
-  const field = fieldOf(props)
-  if (field === undefined) return undefined
-
-  const has = state?.pong
-
-  return has !== undefined && has.w === field.w && has.h === field.rows * 2 ? has : newPong(field.w, field.rows * 2)
-}
-
-const invadersOf = (state: State | undefined, props: GameProps): Invaders | undefined => {
-  const field = fieldOf(props)
-  if (field === undefined) return undefined
-
-  const has = state?.invaders
-
-  return has !== undefined && has.w === field.w && has.h === field.rows ? has : newInvaders(field.w, field.rows)
-}
-
-// Each instance's latest props, for its timer and listeners (which outlive the call that set them).
-const held = new WeakMap<object, GameProps>()
+// Each instance's latest props, its games and how many it has started, for
+// its timer and listeners (which outlive the call that set them).
+const held = new WeakMap<object, { props: GameProps; made: number; slots: Record<string, Slot> }>()
 
 const Games = (props: JsonValue, surface: ClientSurface<State>) => {
   const now = props as unknown as GameProps
+  const mine = held.get(surface) ?? { props: now, made: 0, slots: {} }
+  mine.props = now
+
+  const dataOf = (p: GameProps): GameData => p.data ?? NO_DATA
+  // A new game of `def`, each from a seed of its own.
+  const fresh = (def: AnyGame, field: { w: number; rows: number }, p: GameProps): Playable => {
+    mine.made += 1
+
+    return def.create(field.w, field.rows, lcg(p.seed + mine.made * 7919), dataOf(p)) as Playable
+  }
+  // The game in hand, made anew when there is none or the room changed.
+  const slotOf = (def: AnyGame, p: GameProps): Slot | undefined => {
+    const field = fieldOf(def, p)
+    if (field === undefined) return undefined
+
+    const has = mine.slots[def.id]
+    if (has !== undefined && has.w === field.w && has.rows === field.rows) return has
+
+    const made = { ...field, s: fresh(def, field, p) }
+    mine.slots[def.id] = made
+
+    return made
+  }
 
   if (!held.has(surface)) {
-    const propsNow = (): GameProps => held.get(surface) as GameProps
+    held.set(surface, mine)
 
-    // One game changed by `change`, the other kept; a finished one posts its score once.
-    const pong = (change: (game: Pong) => Pong): void => {
-      const game = pongOf(surface.state, propsNow())
-      if (game === undefined) return
+    // The game in play changed by `change`; a finished one posts its score once.
+    const play = (change: (def: AnyGame, slot: Slot, p: GameProps) => Playable): void => {
+      const p = mine.props
+      const def = gameOf(p.game)
+      const slot = slotOf(def, p)
+      if (slot === undefined) return
 
-      const next = change(game)
-      if (next === game) return
-      if (next.phase === 'over' && game.phase !== 'over') surface.post({ game: 'pong', score: pongScore(next) })
-      surface.setState({ ...surface.state, pong: next })
-    }
-    const invaders = (change: (game: Invaders) => Invaders): void => {
-      const game = invadersOf(surface.state, propsNow())
-      if (game === undefined) return
-
-      const next = change(game)
-      if (next === game) return
-      if (next.phase === 'over' && game.phase !== 'over') surface.post({ game: 'invaders', score: next.score })
-      surface.setState({ ...surface.state, invaders: next })
+      const next = change(def, slot, p)
+      if (next === slot.s) return
+      if (next.phase === 'over' && slot.s.phase !== 'over' && def.noRecord !== true) {
+        surface.post({ game: def.id, score: def.score(next) })
+      }
+      mine.slots[def.id] = { w: slot.w, rows: slot.rows, s: next }
+      surface.setState((surface.state ?? 0) + 1)
     }
 
     surface.every(TICK_MS, () => {
-      // A game that is not being played comes back the same, and asks for no redraw.
-      if (propsNow().game === 'pong') pong(game => stepPong(game, TICK_MS / 1000))
-      else invaders(game => stepInvaders(game, TICK_MS / 1000))
+      const def = gameOf(mine.props.game)
+      const slot = mine.slots[def.id]
+      // Only a game being played moves: the rest asks for no redraw.
+      if (def.step === undefined || slot === undefined || slot.s.phase !== 'playing') return
+
+      play((game, at, p) => game.step?.(at.s, TICK_MS / 1000, dataOf(p)) ?? at.s)
     })
 
-    surface.onKey(({ key }) => {
-      const isPong = propsNow().game === 'pong'
-      const name = key.toLowerCase()
+    surface.onKey(({ key }) => play((def, slot, p) => pressKey(def, slot.s, key, () => fresh(def, slot, p))))
 
-      if (name === 'r') {
-        if (isPong) pong(game => ({ ...newPong(game.w, game.h), phase: 'playing' }))
-        else invaders(game => ({ ...newInvaders(game.w, game.h), phase: 'playing' }))
-      } else if (name === 'p' || name === 'return') {
-        if (isPong) pong(togglePong)
-        else invaders(toggleInvaders)
-      } else if (name === ' ' || name === 'space') {
-        if (isPong) pong(togglePong)
-        else invaders(fireInvaders)
-      } else if (isPong && (name === 'up' || name === 'w')) {
-        pong(game => nudgePong(game, -KEY_STEP))
-      } else if (isPong && (name === 'down' || name === 's')) {
-        pong(game => nudgePong(game, KEY_STEP))
-      } else if (!isPong && (name === 'left' || name === 'a')) {
-        invaders(game => nudgeInvaders(game, -KEY_STEP))
-      } else if (!isPong && (name === 'right' || name === 'd')) {
-        invaders(game => nudgeInvaders(game, KEY_STEP))
-      }
-    })
+    surface.onPointer(event =>
+      play((def, slot, p) => {
+        // The field starts under the game's line above, when it has one.
+        const y = event.y - (def.hud === undefined ? 0 : 1)
+        const e = { type: event.type as 'down' | 'move' | 'up', x: event.x, y, ...(event.button === undefined ? {} : { button: event.button }) }
 
-    surface.onPointer(event => {
-      if (event.type !== 'down' && event.type !== 'move') return
-
-      if (propsNow().game === 'pong') {
-        // A cell of text is two pixels tall.
-        pong(game => {
-          const aimed = aimPong(game, (event.y - ABOVE) * 2 + 1)
-
-          return event.type === 'down' && game.phase !== 'playing' ? togglePong(aimed) : aimed
-        })
-      } else {
-        invaders(game => {
-          const aimed = aimInvaders(game, event.x)
-
-          return event.type === 'down' ? fireInvaders(aimed) : aimed
-        })
-      }
-    })
+        return pressPointer(def, slot.s, e, () => fresh(def, slot, p))
+      }),
+    )
   }
-  held.set(surface, now)
 
-  const lines: Seg[][] = []
-  const game = now.game === 'pong' ? pongOf(surface.state, now) : invadersOf(surface.state, now)
-
-  if (game === undefined) {
-    lines.push([{ text: 'Panel muy angosto para jugar: agrandalo a 40 columnas o más.', dim: true }])
-  } else if (now.game === 'pong') {
-    lines.push([{ text: 'PONG', dim: true }, { text: `  a ${WIN} puntos`, dim: true }], ...drawPong(game as Pong, now.color))
-  } else {
-    lines.push(invadersHud(game as Invaders, now.color), ...drawInvaders(game as Invaders, now.color))
-  }
-  if (game !== undefined) lines.push([{ text: HINTS[now.game], dim: true }])
+  const def = gameOf(now.game)
+  const slot = slotOf(def, now)
+  const lines: Seg[][] =
+    slot === undefined
+      ? [[{ text: `Panel muy angosto para ${def.label}: necesita ${def.minW} columnas.`, dim: true }]]
+      : screenOf(def, slot.s, slot.w, now.color, dataOf(now))
 
   return paint(h, surface.elements, { tab: 'game', now: 0, rows: lines.map(segs => ({ segs })) }, null)
 }

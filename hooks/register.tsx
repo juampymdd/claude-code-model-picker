@@ -1,7 +1,9 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import { addStep, addTool, closeAgent, closeTurn, EMPTY, openAgent, openTurn, startTool, syncAgents } from './history'
+import type { GameData } from './arcade'
+import { GAMES } from './catalog'
+import { addStep, addTool, closeAgent, closeTurn, EMPTY, isDone, openAgent, openTurn, startTool, syncAgents } from './history'
 import { FAMILIES, latest, pickOfId, pickOfName, pickOfText } from './models'
 import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
@@ -41,7 +43,9 @@ const flash = atom({ plugin: 'model-picker', key: 'flash' } as const, 0)
 // The games tab: whether it is offered this session (it is, unless turned off), the game shown, the best scores.
 const gamesOn = atom({ plugin: 'model-picker', key: 'games' } as const, true)
 const gameOf = atom({ plugin: 'model-picker', key: 'game' } as const, 'pong')
-const best = atom({ plugin: 'model-picker', key: 'best' } as const, { pong: 0, invaders: 0 })
+const best = atom({ plugin: 'model-picker', key: 'best' } as const, {})
+// Whether the list of games is open.
+const menu = atom({ plugin: 'model-picker', key: 'menu' } as const, false)
 
 // The key the best scores are kept under between sessions.
 const BEST_KEY = 'games.best'
@@ -152,8 +156,11 @@ export const register: Register = (on, options) => {
     try {
       if (options.games === false) await update($, gamesOn, () => false)
 
-      const kept = (await $.store.get(BEST_KEY)) as Partial<Best> | undefined
-      if (kept !== undefined) await update($, best, was => ({ pong: Number(kept.pong ?? was.pong), invaders: Number(kept.invaders ?? was.invaders) }))
+      const kept = (await $.store.get(BEST_KEY)) as Best | undefined
+      if (kept !== undefined && kept !== null) {
+        const scores = Object.fromEntries(Object.entries(kept).filter(([, score]) => typeof score === 'number'))
+        await update($, best, was => ({ ...was, ...scores }))
+      }
     } catch {
       // no store: the scores start at zero
     }
@@ -318,7 +325,7 @@ export const register: Register = (on, options) => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const data = await read($, history)
+    const record = await read($, history)
     const hasGames = await read($, gamesOn)
     const picked = await read($, tabOf)
     const current = picked === 'juegos' && !hasGames ? 'costo' : picked
@@ -329,7 +336,19 @@ export const register: Register = (on, options) => {
     const parts = $.ui.resolve(e)
     // The player's color is the active model's.
     const color = (pickOfId(await read($, choice)) ?? (await pickOfSession($)))?.family.color ?? 'claude'
-    const room = { game, color, columns: e.props.bodyColumns, rows: e.props.scroll.bodyRows }
+    const data: GameData = {
+      cost: record.total.cost,
+      tools: record.tools.map(tool => ({ name: tool.name, count: tool.count, errors: tool.errors })),
+      agents: record.agents.map(agent => ({
+        id: agent.id,
+        type: agent.type,
+        model: agent.model,
+        steps: agent.steps,
+        cost: agent.cost,
+        state: agent.status === 'failed' || agent.status === 'killed' ? 'failed' : isDone(agent) ? 'done' : 'live',
+      })),
+    }
+    const room = { game, color, columns: e.props.bodyColumns, rows: e.props.scroll.bodyRows, seed: Math.floor(now) % 1_000_000_007, data }
 
     return drawPane(
       h,
@@ -337,18 +356,23 @@ export const register: Register = (on, options) => {
       {
         columns: e.props.bodyColumns,
         tab: current,
-        history: data,
+        history: record,
         now,
         showDone: isShowingDone,
         usage,
         games: hasGames,
         game,
         best: await read($, best),
+        menu: await read($, menu),
       },
       {
         onTab: next => update($, tabOf, () => next),
         onShowDone: show => update($, showDone, () => show),
-        onGame: next => update($, gameOf, () => next),
+        onGame: async next => {
+          await update($, gameOf, () => next)
+          await update($, menu, () => false)
+        },
+        onMenu: isOpen => update($, menu, () => isOpen),
       },
       // Where the surface runs surface modules, the rows are drawn in motion and the games can run.
       'Client' in parts ? props => <parts.Client key="live" module="./live.tsx" props={plainData(props)} /> : undefined,
@@ -360,12 +384,12 @@ export const register: Register = (on, options) => {
   on('ui.message', async ($, e, next) => {
     const data = e.data as { game?: unknown; score?: unknown } | null
     const game = data?.game
-    if (e.element !== 'game' || (game !== 'pong' && game !== 'invaders') || typeof data?.score !== 'number') return next(e)
+    if (e.element !== 'game' || typeof game !== 'string' || !GAMES.some(def => def.id === game) || typeof data?.score !== 'number') return next(e)
 
     const score = data.score
     const was = await read($, best)
 
-    if (score > was[game]) {
+    if (score > (was[game] ?? 0)) {
       const now = { ...was, [game]: score }
       await update($, best, () => now)
       try {

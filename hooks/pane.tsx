@@ -2,6 +2,7 @@
 import type { EngineInterface, RenderNode } from 'claude-code'
 
 import type { Game, Tab } from '../types'
+import { gameOf, GAMES } from './catalog'
 import { paint } from './paint'
 import type { Hyper } from './paint'
 import { headRow, rowsFor } from './rows'
@@ -18,11 +19,6 @@ export const TABS: readonly { tab: Tab; label: string; hotkey: string }[] = [
   { tab: 'juegos', label: '▶ Jugar', hotkey: '6' },
 ]
 
-const GAMES: readonly { game: Game; label: string }[] = [
-  { game: 'pong', label: '◆ Pong' },
-  { game: 'invaders', label: '▲ Space Invaders' },
-]
-
 export type Parts = Pick<ReturnType<EngineInterface['ui']['resolve']>, 'Box' | 'Text' | 'Button'>
 
 // Draws the rows in motion. The hooks module makes it, since a surface module's
@@ -33,6 +29,7 @@ export type Handlers = {
   onTab: (tab: Tab) => unknown
   onShowDone: (show: boolean) => unknown
   onGame: (game: Game) => unknown
+  onMenu: (open: boolean) => unknown
 }
 
 // Draws the game in play; the hooks module makes it, as it makes `Live`.
@@ -52,6 +49,19 @@ export const liveProps = (view: View): LiveProps => ({
 export const drawPane = (hyper: Hyper, parts: Parts, view: View, on: Handlers, live?: Live, play?: Play) => {
   const { Box, Text, Button } = parts
   const isGames = view.tab === 'juegos'
+  const isMenu = view.menu === true
+  const current = gameOf(view.game ?? '')
+  // A game's entry in the list: its glyph, its name and its best score, at one width.
+  const widest = GAMES.reduce((most, game) => Math.max(most, [...game.label].length), 0)
+  const tag = (game: { id: string; glyph: string; label: string }): string =>
+    ` ${game.glyph} ${game.label.padEnd(widest)} ${String(view.best?.[game.id] ?? 0).padStart(5)} `
+  const perShelf = Math.max(1, Math.floor(view.columns / (widest + 10)))
+  const shelves = GAMES.reduce<(typeof GAMES)[number][][]>((all, game, i) => {
+    if (i % perShelf === 0) all.push([])
+    all[all.length - 1]?.push(game)
+
+    return all
+  }, [])
   const tabs = TABS.filter(({ tab }) => tab !== 'juegos' || view.games === true)
   // Each tab takes its key, a colon, a space and its name with one more space.
   const isRoomy = tabs.reduce((all, { label }) => all + 3 + [...label].length + 1, 0) <= view.columns
@@ -75,17 +85,28 @@ export const drawPane = (hyper: Hyper, parts: Parts, view: View, on: Handlers, l
       {live === undefined ? paint(hyper, parts, props, null) : live(props)}
       {isGames && (
         <Box>
-          {GAMES.map(({ game, label }) => (
-            <Button key={game} plain dimColor={game !== view.game} onPress={() => on.onGame(game)}>
-              {game === view.game ? <Text bold inverse>{` ${label} `}</Text> : <Text>{` ${label} `}</Text>}
-            </Button>
-          ))}
+          <Button key="menu" plain dimColor={!isMenu} onPress={() => on.onMenu(!isMenu)}>
+            {isMenu ? <Text bold inverse>{' ☰ juegos '}</Text> : <Text>{' ☰ juegos '}</Text>}
+          </Button>
           <Text dimColor>
-            {`   récord: pong +${view.best?.pong ?? 0} · invaders ${view.best?.invaders ?? 0}`}
+            {`  ${current.glyph} ${current.label} · récord ${view.best?.[current.id] ?? 0}`}
           </Text>
         </Box>
       )}
-      {isGames && (play === undefined ? <Text dimColor>Los juegos corren en la terminal y en la app de escritorio.</Text> : play())}
+      {isGames &&
+        isMenu &&
+        shelves.map(shelf => (
+          <Box>
+            {shelf.map(game => (
+              <Button key={game.id} plain dimColor={game.id !== current.id} onPress={() => on.onGame(game.id)}>
+                {game.id === current.id ? <Text bold inverse>{tag(game)}</Text> : <Text>{tag(game)}</Text>}
+              </Button>
+            ))}
+          </Box>
+        ))}
+      {isGames &&
+        !isMenu &&
+        (play === undefined ? <Text dimColor>Los juegos corren en la terminal y en la app de escritorio.</Text> : play())}
       {view.tab === 'agentes' && hasDone && (
         <Box>
           <Button key="done" plain dimColor onPress={() => on.onShowDone(!view.showDone)}>

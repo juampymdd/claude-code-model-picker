@@ -34,7 +34,13 @@ const world = (on: On) => {
   on('session.usage', () => ({ value: { startedAt: 0, context: { window: 1_000_000 }, rateLimits: [] } }))
 }
 
-type Mounted = Pick<Awaited<ReturnType<Engine['ui']['mount']>>, 'find' | 'findAll'>
+type Mounted = Pick<Awaited<ReturnType<Engine['ui']['mount']>>, 'find' | 'findAll' | 'press'>
+
+// Opens the list of games and picks one (which closes the list).
+const pick = async (ui: Mounted, game: string) => {
+  await ui.press({ key: 'menu' })
+  await ui.press({ key: game })
+}
 
 // The games tab on or off, whatever an earlier test left.
 const setGames = async ($: Engine, ui: Mounted, isOn: boolean) => {
@@ -74,7 +80,7 @@ test('pong waits for a click, then plays: the ball moves and a key moves the pad
     const ui = await $.ui.mount({ ...pane(70), surface })
     await setGames($, ui, true)
     await ui.press({ key: 'juegos' })
-    await ui.press({ key: 'pong' })
+    await pick(ui, 'pong')
 
     expect(await screen(ui)).toMatch(/clic o espacio para jugar/)
     const waiting = await screen(ui)
@@ -112,7 +118,7 @@ test('the other game is one press away: invaders march, and space fires', async 
   const ui = await $.ui.mount({ ...pane(70), surface: 'terminal' })
   await setGames($, ui, true)
   await ui.press({ key: 'juegos' })
-  await ui.press({ key: 'invaders' })
+  await pick(ui, 'invaders')
 
   expect(await screen(ui)).toMatch(/PUNTOS/)
   expect(await screen(ui)).toMatch(/▚▞/)
@@ -130,7 +136,7 @@ test('the other game is one press away: invaders march, and space fires', async 
   expect(await screen(ui)).not.toBe(before)
 
   await ui.key({ key: 'p', ...GAME })
-  await ui.press({ key: 'pong' })
+  await pick(ui, 'pong')
   await ui.press({ key: 'costo' })
   await ui.unmount()
 })
@@ -140,19 +146,26 @@ test('a finished game posts its score, and the best one is kept and shown', asyn
   const ui = await $.ui.mount({ ...pane(70), surface: 'terminal' })
   await setGames($, ui, true)
   await ui.press({ key: 'juegos' })
+  await pick(ui, 'invaders')
 
   await ui.post({ game: 'invaders', score: 500 }, GAME)
-  expect(await ui.find({ type: 'Text', text: /invaders 500/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Space Invaders · récord 500/ })).toBeDefined()
 
-  // A lower score does not replace it; something that is not a score is ignored.
+  // A lower score does not replace it; something that is not a score, or not a game, is ignored.
   await ui.post({ game: 'invaders', score: 120 }, GAME)
-  await ui.post({ game: 'tetris', score: 9999 }, GAME)
+  await ui.post({ game: 'ajedrez', score: 9999 }, GAME)
   await ui.post({ game: 'pong', score: 'mucho' }, GAME)
-  expect(await ui.find({ type: 'Text', text: /pong \+0 · invaders 500/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Space Invaders · récord 500/ })).toBeDefined()
 
   await ui.post({ game: 'pong', score: 7 }, GAME)
-  expect(await ui.find({ type: 'Text', text: /pong \+7 · invaders 500/ })).toBeDefined()
+  await ui.press({ key: 'menu' })
+  expect(await ui.find({ type: 'Text', text: /Pong\s+7 / })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /Space Invaders\s+500 / })).toBeDefined()
+  expect(await ui.find({ key: 'game' })).toBeUndefined()
 
+  // Picking one closes the list and shows the game.
+  await ui.press({ key: 'pong' })
+  expect(await ui.find({ key: 'game' })).toBeDefined()
   await ui.press({ key: 'costo' })
   await ui.unmount()
 })
@@ -163,7 +176,7 @@ test('a pane too narrow to play says so', async ($, on) => {
   await setGames($, ui, true)
   await ui.press({ key: 'juegos' })
 
-  expect(await screen(ui)).toMatch(/Panel muy angosto para jugar/)
+  expect(await screen(ui)).toMatch(/Panel muy angosto para/)
 
   await ui.press({ key: 'costo' })
   await setGames($, ui, false)

@@ -21,9 +21,9 @@ export type Stats = {
 // The stats pane's tabs.
 export type Tab = 'costo' | 'modelos' | 'tools' | 'ritmo' | 'agentes' | 'juegos'
 
-// The games the stats pane can run, and the best score kept of each.
-export type Game = 'pong' | 'invaders'
-export type Best = { pong: number; invaders: number }
+// A game of the stats pane, by its id, and the best score kept of each.
+export type Game = string
+export type Best = Record<string, number>
 
 // One user turn of the main loop, as the stats pane charts it.
 export type Turn = {
@@ -124,6 +124,8 @@ declare module 'claude-code' {
       games: boolean
       game: Game
       best: Best
+      // Whether the list of games is open.
+      menu: boolean
     }
   }
 }
