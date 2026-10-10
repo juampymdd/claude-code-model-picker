@@ -193,3 +193,41 @@ test('the play tab is offered without asking for it', async ($, on) => {
 
   await ui.unmount()
 })
+
+test('every game in the list opens and plays in the pane, with keys, the pointer and its clock', async ($, on) => {
+  world(on)
+  const ui = await $.ui.mount({ ...pane(70), surface: 'terminal' })
+  await setGames($, ui, true)
+  await ui.press({ key: 'juegos' })
+
+  const games = ['pong', 'invaders', 'snake', 'tetris', 'breakout', '2048', 'mines', 'flappy', 'dino', 'frogger', 'asteroids', 'sokoban', 'life', 'tokens', 'race']
+
+  await ui.press({ key: 'menu' })
+  for (const game of games) expect(await ui.find({ key: game })).toBeDefined()
+  await ui.press({ key: 'menu' })
+
+  for (const game of games) {
+    await pick(ui, game)
+    const waiting = await screen(ui)
+    expect(waiting).toMatch(/\S/)
+
+    await ui.pointer({ type: 'down', x: 6, y: 4, button: 'left', ...GAME })
+    for (const key of ['up', 'left', ' ', 'right', 'down']) await ui.key({ key, ...GAME })
+    await ui.advance(1500)
+    await ui.pointer({ type: 'move', x: 12, y: 5, ...GAME })
+    await ui.pointer({ type: 'up', x: 12, y: 5, button: 'left', ...GAME })
+    await ui.advance(500)
+
+    // Still drawn, and no longer waiting to be started.
+    const played = await screen(ui)
+    expect(played).toMatch(/\S/)
+    expect(played).not.toMatch(/clic o espacio para jugar/)
+    expect(await ui.find({ key: 'game' })).toBeDefined()
+
+    await ui.key({ key: 'p', ...GAME })
+  }
+
+  await pick(ui, 'pong')
+  await ui.press({ key: 'costo' })
+  await ui.unmount()
+})

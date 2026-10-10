@@ -32,6 +32,8 @@ export type GameDef<S extends Playable> = {
   maxRows: number
   // A game with no score worth keeping.
   noRecord?: boolean
+  // Milliseconds between its steps, when it needs fewer than the module's own twenty a second.
+  every?: number
   // It draws its own notices (waiting, paused, over).
   ownNotice?: boolean
   create: (w: number, rows: number, seed: number, data: GameData) => S

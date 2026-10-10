@@ -32,7 +32,7 @@ With the version dropdown open:
 - **Instant switch**: the choice applies to the next request.
 - **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
 - **Animated stats pane** with charts of the session's cost, models, tools and pace, and the **agents, live**: what each one is doing, on which model and what it costs.
-- **Pong and Space Invaders** in the pane, for when Claude works by itself, under the [`▶ Jugar`](#6--juegos-games) tab.
+- **15 games** in the pane (Pong, Tetris, Snake, Minesweeper, 2048… and two made of your session's data), under the [`▶ Jugar`](#6--jugar-play) tab.
 - **`/modelo` command** to do the same from the keyboard.
 - **Updates itself**: once a day it looks for a new version and installs it. It can be [turned off](#turning-it-off).
 
@@ -125,7 +125,7 @@ claude plugin list
 | `/modelo opus 4.8` | Switches to that exact version |
 | `/modelo auto` | Goes back to the session's model |
 | `/modelo stats` | Opens or closes the [stats pane](#the-stats-pane) |
-| `/modelo juegos` | Hides or shows the pane's [games](#6--juegos-games) tab |
+| `/modelo juegos` | Hides or shows the pane's [games](#6--jugar-play) tab |
 
 Families: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -254,67 +254,56 @@ Each agent takes two rows. On top: state, type, description, time and cost. Belo
 - Running ones come first (newest on top), then the latest 10 finished; **`ocultar terminados`** ("hide finished") drops them from the list.
 - While agents are at work, a `●` with their count beats beside the band's `▦ stats` button, so you know without opening the pane.
 
-### 6 · Juegos (games)
+### 6 · Jugar (play)
 
-For when Claude is working by itself: **Pong** and **Space Invaders** inside the pane, under the **`▶ Jugar`** ("play") tab, always there beside the others.
-
-**Hiding it:** `/modelo juegos` removes it or puts it back for the session. To never see it, `/config` → **Juegos en el panel** (`model-picker.games`) → off.
+For when Claude is working by itself: **15 games** inside the pane, under the **`▶ Jugar`** tab, always there beside the others.
 
 ```
- 6: ▶ Jugar     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
+ ☰ juegos   ◆ Pong · récord 7
 ```
 
-Pick the game with a click. To play with the keyboard you have to **click on the game** (that gives it the focus); `Esc` hands it back to the prompt. The mouse always works.
+**`☰ juegos`** opens the list of every game with its best score (`récord`); a click on one opens it. To play with the keyboard you have to **click on the game** (that gives it the focus); `Esc` hands it back to the prompt. The mouse always works.
 
-**Pong**, against the machine, to 11 points. Your paddle takes the active model's color.
-
-```
-PONG  a 11 puntos
-                          7        ▀         3
-  █                               ▄
-  █                                      ▀
-                                  ▀                      █
-↑↓ o mouse mueven · espacio pausa · r reinicia
-```
+Keys every game shares:
 
 | Key | Action |
 | --- | --- |
-| `↑` `↓` or `w` `s` | Move the paddle |
-| Mouse | The paddle follows the pointer; a click starts |
-| `space`, `p` or `Enter` | Start, pause and resume |
-| `r` | New game |
-
-The ball speeds up with each hit and leaves at the angle of where it struck the paddle. The record (`récord`) is the largest margin you won by.
-
-**Space Invaders**: three rows of invaders coming down faster and faster, shields that wear out and three lives.
-
-```
-PUNTOS 240   ◆◆◆   OLEADA 1
-   ▚▞ ▚▞ ▚▞    ▚▞ ▚▞ ▚▞ ▚▞
-   ▛▜ ▛▜ ▛▜ ▛▜ ▛▜    ▛▜ ▛▜
-   ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟
-             ╏
-        ███         █▒█         ███
-                │
-               ▟█▙
-←→ o mouse mueven · espacio o clic dispara · p pausa · r reinicia
-```
-
-| Key | Action |
-| --- | --- |
-| `←` `→` or `a` `d` | Move the ship |
-| Mouse | The ship follows the pointer; a click fires |
-| `space` | Fires (one shot at a time) |
+| `space` or a click | Starts; resumes after a pause |
 | `p` or `Enter` | Pause and resume |
 | `r` | New game |
 
-The rows are worth 30, 20 and 10 points (`PUNTOS`). Clearing the screen brings another, faster wave (`OLEADA`). It ends when the three lives are gone or the invaders reach the ship.
+| Game | What it is | Keyboard | Mouse |
+| --- | --- | --- | --- |
+| ◆ **Pong** | Against the machine, to 11 points | `↑` `↓` move · `space` pauses | the paddle follows the pointer |
+| ▲ **Space Invaders** | Three rows coming down faster and faster, shields, three lives | `←` `→` · `space` fires | the ship follows the pointer · click fires |
+| ● **Snake** | Eat, grow, and speed up every five meals | arrows turn | a click points that way |
+| ▟ **Tetris** | Seven pieces from a bag, a held piece and a drop shadow | `←` `→` · `↑`/`x` turns · `z` the other way · `↓` down · `space` drops · `c` holds | a click to a side moves, in the middle turns · right drops |
+| ▬ **Breakout** | Six rows of bricks, three lives, faster levels | `←` `→` · `space` launches | the paddle follows the pointer · click launches |
+| ▦ **2048** | Slide and merge like tiles | arrows | drag |
+| ✸ **Buscaminas** (Minesweeper) | The first click is never a mine; the board depends on the pane's width | arrows + `space` opens · `f` flags | click opens · right flags · a click on a number opens around it |
+| ▶ **Flappy** | Fly between the pipes; the gap narrows | `space` or `↑` flaps | click flaps |
+| ▙ **Dino** | Jump the cactuses, duck under the birds | `space`/`↑` jumps · `↓` ducks | click jumps |
+| ☻ **Frogger** | Across the road and the river to five homes, against the clock | arrows hop | a click hops that way |
+| ◇ **Asteroids** | A field with no edges, rocks that split in two | `←` `→` turn · `↑` thrusts · `space` fires | points at the pointer · click fires · right thrusts |
+| ▣ **Sokoban** | Six levels: push every box onto its goal | arrows · `u` undoes · `n`/`b` change level | click beside the player |
+| ░ **Juego de la vida** (Game of Life) | Not won: drawn on and watched | `space` pauses · `c` clears · `g` glider · `1`–`5` speed | draws (right erases) |
+| $ **Token Invaders** | Invaders with **your tools** as the invaders | as Invaders | as Invaders |
+| ⚑ **Carrera de agentes** (agents' race) | The session's subagents on a track | not played | — |
 
-- Records are kept between sessions.
-- A terminal does not report key releases: each press moves one step (holding the key repeats). With the mouse the movement is continuous.
+Two games use your session's data:
+
+- **Token Invaders**: each invader is a tool Claude used (`Ba` Bash, `Ed` Edit, `Re` Read…), the most used first. Green if it never failed, amber if it ever did, red past one failure in five. They come down faster the more the session cost: twice as fast from $10 on.
+- **Carrera de agentes**: a lane per subagent, moving one cell per request, with its cost at the end. Those still working take their model's color and a beating `▶`; those that finished show `✔` or `✕`.
+
+Good to know:
+
+- Records are kept between sessions. In Minesweeper the record rewards the shortest time; in Sokoban it counts the levels solved; the Game of Life and the race have none.
+- A terminal does not report key releases: each press moves one step (holding the key repeats). Asteroids and Breakout play better with the mouse.
 - While the game has the focus, the `1` to `6` tab keys may not answer: `Esc` first.
-- The game cannot tell that it lost the focus: if you change tabs or close the pane without pausing, it stops because it is no longer drawn; back on it, it goes on from where it was.
-- It needs a pane of 40 columns or more. The games run in the terminal and the desktop app.
+- Each game needs a minimum width (between 20 and 38 columns) and says so when the pane falls short.
+- The games run in the terminal and the desktop app.
+
+**Hiding the tab:** `/modelo juegos` removes it or puts it back for the session. To never see it, `/config` → **Juegos en el panel** (`model-picker.games`) → off.
 
 ### Motion
 
@@ -530,11 +519,15 @@ hooks/
   rows.ts            each tab of the pane as rows of text
   paint.tsx          draws the rows, still or in motion
   live.tsx           surface module: the clock of the animations
-  games.tsx          surface module: the games (clock, keys, pointer)
-  pong.ts            Pong
-  invaders.ts        Space Invaders
+  games.tsx          surface module: runs the chosen game (clock, keys, pointer)
+  arcade.ts          the contract every game meets, and what they share
+  catalog.ts         the list of games
   pixels.ts          a screen of half blocks for the games
-  screens.ts         how each game is drawn
+  pong.ts invaders.ts classics.ts screens.ts        Pong and Space Invaders
+  snake.ts tetris.ts breakout.ts g2048.ts mines.ts  one game per file
+  flappy.ts dino.ts frogger.ts asteroids.ts
+  sokoban.ts life.ts
+  sessiongames.ts    Token Invaders and the agents' race
   pane.tsx           the tabs and the pane's assembly
   update.ts          the self-update
 types/
@@ -545,7 +538,8 @@ tests/
   charts.test.ts     the charts
   history.test.ts    the history
   motion.test.ts     the animation engine and the agents list
-  games.test.ts      the games' rules
+  games.test.ts      the rules of Pong and Space Invaders
+  rules.test.ts      the rules of the other games
   arcade.test.tsx    the games running in the pane
   pane.test.tsx      the stats pane
   update.test.ts     the self-update

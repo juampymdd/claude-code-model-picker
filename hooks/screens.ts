@@ -47,8 +47,12 @@ export const drawPong = (s: Pong, color: string): Seg[][] => {
   return toRows(f)
 }
 
-/** Space Invaders: the block of invaders, shots, shields, the ship and what just blew up. */
-export const drawInvaders = (s: Invaders, color: string): Seg[][] => {
+/**
+ * Space Invaders: the block of invaders, shots, shields, the ship and what just
+ * blew up. Given `tags`, each invader is drawn as its tag (two cells, a color)
+ * in place of its shape.
+ */
+export const drawInvaders = (s: Invaders, color: string, tags?: readonly { text: string; color: string }[]): Seg[][] => {
   const f = blank(s.w, s.h)
 
   for (let row = 0; row < ROWS; row += 1) {
@@ -58,7 +62,8 @@ export const drawInvaders = (s: Invaders, color: string): Seg[][] => {
       if (!s.alive[row * COLS + col]) continue
 
       const at = invaderAt(s, row, col)
-      write(f, at.x, at.y, shape.poses[s.pose], shape.color)
+      const tag = tags?.[row * COLS + col]
+      write(f, at.x, at.y, tag?.text ?? shape.poses[s.pose], tag?.color ?? shape.color)
     }
   }
 

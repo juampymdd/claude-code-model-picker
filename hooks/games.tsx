@@ -33,11 +33,11 @@ const fieldOf = (def: AnyGame, props: GameProps): { w: number; rows: number } | 
 
 // Each instance's latest props, its games and how many it has started, for
 // its timer and listeners (which outlive the call that set them).
-const held = new WeakMap<object, { props: GameProps; made: number; slots: Record<string, Slot> }>()
+const held = new WeakMap<object, { props: GameProps; made: number; due: number; slots: Record<string, Slot> }>()
 
 const Games = (props: JsonValue, surface: ClientSurface<State>) => {
   const now = props as unknown as GameProps
-  const mine = held.get(surface) ?? { props: now, made: 0, slots: {} }
+  const mine = held.get(surface) ?? { props: now, made: 0, due: 0, slots: {} }
   mine.props = now
 
   const dataOf = (p: GameProps): GameData => p.data ?? NO_DATA
@@ -86,7 +86,13 @@ const Games = (props: JsonValue, surface: ClientSurface<State>) => {
       // Only a game being played moves: the rest asks for no redraw.
       if (def.step === undefined || slot === undefined || slot.s.phase !== 'playing') return
 
-      play((game, at, p) => game.step?.(at.s, TICK_MS / 1000, dataOf(p)) ?? at.s)
+      // A slow game is stepped (and so redrawn) only as often as it asks.
+      mine.due += TICK_MS
+      if (mine.due < (def.every ?? TICK_MS)) return
+
+      const dt = mine.due / 1000
+      mine.due = 0
+      play((game, at, p) => game.step?.(at.s, dt, dataOf(p)) ?? at.s)
     })
 
     surface.onKey(({ key }) => play((def, slot, p) => pressKey(def, slot.s, key, () => fresh(def, slot, p))))

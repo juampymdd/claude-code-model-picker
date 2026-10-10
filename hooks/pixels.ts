@@ -86,3 +86,10 @@ export const toRows = (f: Frame): Seg[][] =>
 
     return runs
   })
+
+/** Colors the pixels of the straight line from (x0, y0) to (x1, y1). */
+export const line = (f: Frame, x0: number, y0: number, x1: number, y1: number, color: string): void => {
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0))))
+
+  for (let i = 0; i <= steps; i += 1) plot(f, x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps, color)
+}

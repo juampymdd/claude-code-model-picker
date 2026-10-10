@@ -49,7 +49,7 @@ Con el dropdown de versiones abierto:
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
 - **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
 - **Panel de estadísticas** animado, con gráficos de costo, modelos, herramientas y ritmo de la sesión, y los **agentes en vivo**: qué hace cada uno, con qué modelo y cuánto gasta.
-- **Pong y Space Invaders** en el panel, para cuando Claude trabaja solo, en la pestaña [`▶ Jugar`](#6--juegos).
+- **15 juegos** en el panel (Pong, Tetris, Snake, Buscaminas, 2048… y dos hechos con los datos de tu sesión), en la pestaña [`▶ Jugar`](#6--jugar).
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
 - **Se actualiza solo**: una vez por día busca una versión nueva y la instala. Se puede [apagar](#apagarlo).
 
@@ -151,7 +151,7 @@ Después, en una sesión nueva, escribí `/modelo`. Si responde `Modelo: Opus 5.
 | `/modelo opus 4.8` | Cambia a esa versión puntual |
 | `/modelo auto` | Vuelve al modelo de la sesión |
 | `/modelo stats` | Abre o cierra el [panel de estadísticas](#el-panel-de-estadísticas) |
-| `/modelo juegos` | Oculta o muestra la pestaña de [juegos](#6--juegos) del panel |
+| `/modelo juegos` | Oculta o muestra la pestaña de [juegos](#6--jugar) del panel |
 
 Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -280,67 +280,56 @@ Cada agente ocupa dos filas. Arriba: estado, tipo, descripción, tiempo y costo.
 - Primero van los que corren (el más nuevo arriba) y después los últimos 10 terminados; **`ocultar terminados`** los saca de la lista.
 - Mientras hay agentes trabajando, al lado del botón `▦ stats` de la banda late un `●` con la cantidad, así te enterás sin abrir el panel.
 
-### 6 · Juegos
+### 6 · Jugar
 
-Para los ratos en que Claude trabaja solo: **Pong** y **Space Invaders** dentro del panel, en la pestaña **`▶ Jugar`**, siempre a la vista al lado de las demás.
-
-**Ocultarla:** `/modelo juegos` la saca o la vuelve a poner para la sesión. Para no verla nunca, `/config` → **Juegos en el panel** (`model-picker.games`) → desactivar.
+Para los ratos en que Claude trabaja solo: **15 juegos** dentro del panel, en la pestaña **`▶ Jugar`**, siempre a la vista al lado de las demás.
 
 ```
- 6: ▶ Jugar     ◆ Pong    ▲ Space Invaders      récord: pong +7 · invaders 1840
+ ☰ juegos   ◆ Pong · récord 7
 ```
 
-Se elige el juego con un clic. Para jugar con el teclado hay que **hacer clic sobre el juego** (así toma el foco); `Esc` se lo devuelve al prompt. El mouse funciona siempre.
+**`☰ juegos`** abre la lista con todos los juegos y el récord de cada uno; un clic en uno lo abre. Para jugar con el teclado hay que **hacer clic sobre el juego** (así toma el foco); `Esc` se lo devuelve al prompt. El mouse funciona siempre.
 
-**Pong**, contra la máquina, a 11 puntos. Tu paleta lleva el color del modelo activo.
-
-```
-PONG  a 11 puntos
-                          7        ▀         3
-  █                               ▄
-  █                                      ▀
-                                  ▀                      █
-↑↓ o mouse mueven · espacio pausa · r reinicia
-```
+Teclas comunes a todos:
 
 | Tecla | Acción |
 | --- | --- |
-| `↑` `↓` o `w` `s` | Mueven la paleta |
-| Mouse | La paleta sigue al puntero; un clic empieza |
-| `espacio`, `p` o `Enter` | Empieza, pausa y sigue |
-| `r` | Partida nueva |
-
-La pelota acelera con cada golpe y sale en el ángulo de donde pega en la paleta. El récord es la mayor diferencia de puntos con la que ganaste.
-
-**Space Invaders**: tres filas de invasores que bajan cada vez más rápido, escudos que se gastan y tres vidas.
-
-```
-PUNTOS 240   ◆◆◆   OLEADA 1
-   ▚▞ ▚▞ ▚▞    ▚▞ ▚▞ ▚▞ ▚▞
-   ▛▜ ▛▜ ▛▜ ▛▜ ▛▜    ▛▜ ▛▜
-   ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟ ▙▟
-             ╏
-        ███         █▒█         ███
-                │
-               ▟█▙
-←→ o mouse mueven · espacio o clic dispara · p pausa · r reinicia
-```
-
-| Tecla | Acción |
-| --- | --- |
-| `←` `→` o `a` `d` | Mueven la nave |
-| Mouse | La nave sigue al puntero; un clic dispara |
-| `espacio` | Dispara (un disparo a la vez) |
+| `espacio` o clic | Empieza; sigue después de una pausa |
 | `p` o `Enter` | Pausa y sigue |
 | `r` | Partida nueva |
 
-Las filas valen 30, 20 y 10 puntos. Al limpiar la pantalla llega otra oleada, más rápida. Se termina al perder las tres vidas o si los invasores llegan a la nave.
+| Juego | De qué se trata | Teclado | Mouse |
+| --- | --- | --- | --- |
+| ◆ **Pong** | Contra la máquina, a 11 puntos | `↑` `↓` mueven · `espacio` pausa | la paleta sigue al puntero |
+| ▲ **Space Invaders** | Tres filas que bajan cada vez más rápido, escudos, tres vidas | `←` `→` · `espacio` dispara | la nave sigue al puntero · clic dispara |
+| ● **Snake** | Come, crece y acelera cada cinco comidas | flechas giran | clic apunta hacia ahí |
+| ▟ **Tetris** | Siete piezas en bolsa, pieza guardada y sombra de caída | `←` `→` · `↑`/`x` gira · `z` al revés · `↓` baja · `espacio` cae · `c` guarda | clic a un lado mueve, en el medio gira · derecho cae |
+| ▬ **Breakout** | Seis filas de ladrillos, tres vidas, niveles más rápidos | `←` `→` · `espacio` lanza | la paleta sigue al puntero · clic lanza |
+| ▦ **2048** | Deslizar y fusionar fichas iguales | flechas | arrastrar |
+| ✸ **Buscaminas** | El primer clic nunca es mina; tablero según el ancho del panel | flechas + `espacio` abre · `f` marca | clic abre · derecho marca · clic en un número abre alrededor |
+| ▶ **Flappy** | Pasar entre los tubos; el hueco se achica | `espacio` o `↑` aletea | clic aletea |
+| ▙ **Dino** | Saltar cactus, agacharse bajo los pájaros | `espacio`/`↑` salta · `↓` se agacha | clic salta |
+| ☻ **Frogger** | Cruzar la ruta y el río hasta los cinco nidos, con tiempo | flechas saltan | clic salta hacia ahí |
+| ◇ **Asteroids** | Campo sin bordes, rocas que se parten en dos | `←` `→` giran · `↑` empuja · `espacio` dispara | apunta al puntero · clic dispara · derecho empuja |
+| ▣ **Sokoban** | Seis niveles: empujar cada caja a su meta | flechas · `u` deshace · `n`/`b` cambian de nivel | clic al lado del jugador |
+| ░ **Juego de la vida** | No se gana: se dibuja y se mira evolucionar | `espacio` pausa · `c` limpia · `g` planeador · `1`–`5` velocidad | dibuja (derecho borra) |
+| $ **Token Invaders** | Invaders con **tus herramientas** como invasores | como Invaders | como Invaders |
+| ⚑ **Carrera de agentes** | Los subagentes de la sesión en una pista | no se juega | — |
 
-- Los récords se guardan entre sesiones.
-- La terminal no avisa cuando se suelta una tecla: cada pulsación mueve un paso (mantenerla apretada repite). Con el mouse el movimiento es continuo.
+Dos juegos usan los datos de tu sesión:
+
+- **Token Invaders**: cada invasor es una herramienta que usó Claude (`Ba` Bash, `Ed` Edit, `Re` Read…), las más usadas primero. Verde si nunca falló, ámbar si falló alguna vez, rojo si falló más de una de cada cinco. Bajan más rápido cuanto más costó la sesión: al doble desde $10.
+- **Carrera de agentes**: una pista por subagente, que avanza una celda por request, con su costo al final. Los que siguen trabajando llevan el color de su modelo y un `▶` que late; los que terminaron quedan con `✔` o `✕`.
+
+Cosas a saber:
+
+- Los récords se guardan entre sesiones. En Buscaminas el récord premia el menor tiempo; en Sokoban cuenta los niveles resueltos; el Juego de la vida y la Carrera no tienen.
+- La terminal no avisa cuando se suelta una tecla: cada pulsación mueve un paso (mantenerla apretada repite). Asteroids y Breakout se juegan mejor con el mouse.
 - Mientras el juego tiene el foco, las teclas `1` a `6` de las pestañas pueden no responder: `Esc` primero.
-- El juego no sabe si perdió el foco: si cambiás de pestaña o cerrás el panel sin pausar, se detiene porque deja de dibujarse; al volver sigue donde estaba.
-- Necesita un panel de 40 columnas o más. Los juegos corren en la terminal y en la app de escritorio.
+- Cada juego necesita un ancho mínimo (entre 20 y 38 columnas) y avisa si el panel no llega.
+- Los juegos corren en la terminal y en la app de escritorio.
+
+**Ocultar la pestaña:** `/modelo juegos` la saca o la vuelve a poner para la sesión. Para no verla nunca, `/config` → **Juegos en el panel** (`model-picker.games`) → desactivar.
 
 ### Animaciones
 
@@ -556,11 +545,15 @@ hooks/
   rows.ts            cada pestaña del panel como filas de texto
   paint.tsx          dibuja las filas, quietas o en movimiento
   live.tsx           módulo de superficie: el reloj de las animaciones
-  games.tsx          módulo de superficie: los juegos (reloj, teclas, mouse)
-  pong.ts            Pong
-  invaders.ts        Space Invaders
+  games.tsx          módulo de superficie: corre el juego elegido (reloj, teclas, mouse)
+  arcade.ts          el contrato que cumple cada juego y lo que comparten
+  catalog.ts         la lista de juegos
   pixels.ts          pantalla de medios bloques para los juegos
-  screens.ts         cómo se dibuja cada juego
+  pong.ts invaders.ts classics.ts screens.ts        Pong y Space Invaders
+  snake.ts tetris.ts breakout.ts g2048.ts mines.ts  un juego por archivo
+  flappy.ts dino.ts frogger.ts asteroids.ts
+  sokoban.ts life.ts
+  sessiongames.ts    Token Invaders y la Carrera de agentes
   pane.tsx           las pestañas y el armado del panel
   update.ts          la actualización automática
 types/
@@ -571,7 +564,8 @@ tests/
   charts.test.ts     los gráficos
   history.test.ts    el historial
   motion.test.ts     el motor de animación y la lista de agentes
-  games.test.ts      las reglas de los juegos
+  games.test.ts      las reglas de Pong y Space Invaders
+  rules.test.ts      las reglas de los demás juegos
   arcade.test.tsx    los juegos corriendo en el panel
   pane.test.tsx      el panel de estadísticas
   update.test.ts     la actualización automática

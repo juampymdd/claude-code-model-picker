@@ -205,7 +205,7 @@ export const paint = (hyper: Hyper, parts: Parts, props: LiveProps, anim: Anim |
           const risen = anim === null ? 1 : Math.min(1, (frame - anim.tabFrame + 1) / RISE_FRAMES)
 
           return columnChart(row.chart.map(value => value * risen), row.height, row.max).map(text => (
-            <Text wrap="truncate-end" color={row.color}>
+            <Text wrap="truncate-end" color={row.color || undefined}>
               {text}
             </Text>
           ))
@@ -227,8 +227,9 @@ export const paint = (hyper: Hyper, parts: Parts, props: LiveProps, anim: Anim |
 
               return (
                 <Text
-                  color={now.color}
-                  backgroundColor={seg.fill}
+                  // An empty color is no color: the engine refuses it as a value.
+                  color={now.color || undefined}
+                  backgroundColor={seg.fill || undefined}
                   bold={seg.bold === true || isFlash}
                   dimColor={seg.dim === true || isFaded}
                 >

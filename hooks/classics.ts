@@ -57,5 +57,5 @@ export const invaders: GameDef<Invaders> = {
   pointer: (s, e) => (e.type === 'down' ? fireInvaders(aimInvaders(s, e.x)) : aimInvaders(s, e.x)),
   score: s => s.score,
   hud: (s, color) => invadersHud(s, color),
-  draw: drawInvaders,
+  draw: (s, color) => drawInvaders(s, color),
 }

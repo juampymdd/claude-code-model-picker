@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { animFor, paceOf, stepAnim } from '../hooks/paint'
+import { animFor, paceOf, paint, stepAnim } from '../hooks/paint'
 import type { Anim } from '../hooks/paint'
 import { liveProps } from '../hooks/pane'
 import { liveAgents, listedAgents, plainData } from '../hooks/rows'
@@ -142,4 +142,19 @@ test('what is handed to the moving drawing holds nothing undefined, whatever the
   }
 
   expect(hasUndefined(plainData({ color: undefined, rows: [{ segs: [{ text: 'a', color: undefined }] }] }))).toBe(false)
+})
+
+test('an empty color is drawn as no color at all', () => {
+  const seen: Record<string, unknown>[] = []
+  const hyper = (tag: unknown, props: Record<string, unknown> | null | undefined) => {
+    if (tag === 'Text' && props) seen.push(props)
+
+    return 'node'
+  }
+  const rows = props([{ segs: [{ text: 'a', color: '', fill: '' }] }, { key: 'c', chart: [1], height: 1, color: '' }])
+
+  paint(hyper as never, { Box: 'Box', Text: 'Text' } as never, rows, null)
+
+  expect(seen.length).toBeGreaterThan(2)
+  expect(seen.some(p => p.color === '' || p.backgroundColor === '')).toBe(false)
 })
