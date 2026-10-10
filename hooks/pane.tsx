@@ -52,17 +52,25 @@ export const liveProps = (view: View): LiveProps => ({
 export const drawPane = (hyper: Hyper, parts: Parts, view: View, on: Handlers, live?: Live, play?: Play) => {
   const { Box, Text, Button } = parts
   const isGames = view.tab === 'juegos'
+  const tabs = TABS.filter(({ tab }) => tab !== 'juegos' || view.games === true)
+  // Each tab takes its key, a colon, a space and its name with one more space.
+  const isRoomy = tabs.reduce((all, { label }) => all + 3 + [...label].length + 1, 0) <= view.columns
   const props = liveProps(view)
   const hasDone = view.history.agents.some(agent => agent.endedAt !== undefined)
 
   return (
     <Box flexDirection="column">
       <Box>
-        {TABS.filter(({ tab }) => tab !== 'juegos' || view.games === true).map(({ tab, label, hotkey }) => (
-          <Button key={tab} plain hotkey={hotkey} dimColor={tab !== view.tab} onPress={() => on.onTab(tab)}>
-            {tab === view.tab ? <Text bold inverse>{` ${hotkey}: ${label} `}</Text> : <Text>{` ${hotkey}: ${label} `}</Text>}
-          </Button>
-        ))}
+        {tabs.map(({ tab, label, hotkey }) => {
+          // The button draws its own key (`1:`); a pane too narrow for every name keeps only the shown tab's.
+          const name = isRoomy || tab === view.tab ? `${label} ` : ''
+
+          return (
+            <Button key={tab} plain hotkey={hotkey} dimColor={tab !== view.tab} onPress={() => on.onTab(tab)}>
+              {tab === view.tab ? <Text bold inverse>{name}</Text> : <Text>{name}</Text>}
+            </Button>
+          )
+        })}
       </Box>
       {live === undefined ? paint(hyper, parts, props, null) : live(props)}
       {isGames && (

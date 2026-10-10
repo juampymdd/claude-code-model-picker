@@ -176,7 +176,7 @@ test('the play tab is offered without asking for it', async ($, on) => {
   await $.session.end({ reason: 'other', sessionId: 's', resume: { id: 's' } }).catch(() => undefined)
 
   await setGames($, ui, true)
-  expect(await ui.find({ type: 'Text', text: /6: ▶ Jugar/ })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /▶ Jugar/ })).toBeDefined()
 
   await ui.unmount()
 })
