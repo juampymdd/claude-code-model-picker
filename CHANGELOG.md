@@ -2,7 +2,7 @@
 
 Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones, [SemVer](https://semver.org/lang/es/).
 
-## [0.4.0] - 2026-10-08
+## [0.4.0] - 2026-10-10
 
 ### Agregado
 
