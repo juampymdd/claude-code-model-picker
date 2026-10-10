@@ -5,7 +5,7 @@ import { addStep, addTool, closeAgent, closeTurn, EMPTY, openAgent, openTurn, st
 import { FAMILIES, latest, pickOfId, pickOfName, pickOfText } from './models'
 import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
-import { liveAgents } from './rows'
+import { liveAgents, plainData } from './rows'
 import type { LiveProps } from './rows'
 import type { Best } from '../types'
 import { paint } from './paint'
@@ -351,8 +351,8 @@ export const register: Register = (on, options) => {
         onGame: next => update($, gameOf, () => next),
       },
       // Where the surface runs surface modules, the rows are drawn in motion and the games can run.
-      'Client' in parts ? props => <parts.Client key="live" module="./live.tsx" props={props} /> : undefined,
-      'Client' in parts ? () => <parts.Client key="game" module="./games.tsx" props={room} /> : undefined,
+      'Client' in parts ? props => <parts.Client key="live" module="./live.tsx" props={plainData(props)} /> : undefined,
+      'Client' in parts ? () => <parts.Client key="game" module="./games.tsx" props={plainData(room)} /> : undefined,
     )
   })
 
@@ -459,7 +459,7 @@ export const register: Register = (on, options) => {
           </Button>
           {working > 0 &&
             ('Client' in parts ? (
-              <parts.Client key="agents" module="./live.tsx" props={beat} />
+              <parts.Client key="agents" module="./live.tsx" props={plainData(beat)} />
             ) : (
               <Text color="success">●{working} </Text>
             ))}
@@ -491,7 +491,7 @@ export const register: Register = (on, options) => {
         })}
         {opened === undefined && (
           <Box marginLeft={2}>
-            {'Client' in parts ? <parts.Client key="datos" module="./live.tsx" props={facts} /> : paint(h, parts, facts, null)}
+            {'Client' in parts ? <parts.Client key="datos" module="./live.tsx" props={plainData(facts)} /> : paint(h, parts, facts, null)}
           </Box>
         )}
       </Box>

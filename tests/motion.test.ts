@@ -2,7 +2,8 @@ import { expect, test } from 'claude-code/testing'
 
 import { animFor, paceOf, stepAnim } from '../hooks/paint'
 import type { Anim } from '../hooks/paint'
-import { liveAgents, listedAgents } from '../hooks/rows'
+import { liveProps } from '../hooks/pane'
+import { liveAgents, listedAgents, plainData } from '../hooks/rows'
 import type { LiveProps, Row } from '../hooks/rows'
 import { addStep, closeAgent, EMPTY, openAgent, startTool } from '../hooks/history'
 
@@ -117,4 +118,28 @@ test('the agents are listed live first, then the latest finished, and counted wh
   const back = startTool(h, 'old', 'Bash', 40)
   expect(liveAgents(back)).toBe(3)
   expect(liveAgents(addStep(closeAgent(back, { id: 'new', reason: 'error' }, 50), { turnId: 't', isMain: false, agentId: 'mid' }, null, 60))).toBe(2)
+})
+
+// Whether `undefined` sits anywhere in a value (the engine refuses it in a surface module's props).
+const hasUndefined = (value: unknown): boolean => {
+  if (value === undefined) return true
+  if (value === null || typeof value !== 'object') return false
+
+  return Object.values(value).some(hasUndefined)
+}
+
+test('what is handed to the moving drawing holds nothing undefined, whatever the session held', () => {
+  // A model the list lacks has no color, an agent no model, a turn no reason yet.
+  let h = addStep(EMPTY, { turnId: 't', isMain: true }, { model: 'some-other-model', input_tokens: 5, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, 10)
+  h = openAgent(h, { id: 'a', type: 'Explore', description: 'x' }, 20)
+  h = startTool(h, 'a', 'Bash', 30)
+
+  for (const tab of ['costo', 'modelos', 'tools', 'ritmo', 'agentes', 'juegos'] as const) {
+    const props = liveProps({ columns: 64, tab, history: h, now: 100, showDone: true, usage: { startedAt: undefined, percent: undefined } })
+
+    expect(hasUndefined(plainData(props))).toBe(false)
+    expect(plainData(props).rows.length).toBe(props.rows.length)
+  }
+
+  expect(hasUndefined(plainData({ color: undefined, rows: [{ segs: [{ text: 'a', color: undefined }] }] }))).toBe(false)
 })

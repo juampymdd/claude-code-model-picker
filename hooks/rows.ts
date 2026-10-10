@@ -389,5 +389,12 @@ export const rowsFor = (view: View): Row[] => {
   return isEmpty && view.tab !== 'agentes' && view.tab !== 'juegos' ? [line(dim(WAITING))] : TABS[view.tab](view)
 }
 
+/**
+ * A value as a surface module may be handed it: plain data, with nothing
+ * `undefined` left in it (a color a model has none of, an absent field), which
+ * the engine refuses in a module's props.
+ */
+export const plainData = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T
+
 /** How many agents are at work now. */
 export const liveAgents = (h: History): number => h.agents.filter(agent => !isDone(agent)).length
