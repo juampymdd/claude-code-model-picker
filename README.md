@@ -6,6 +6,10 @@
 
 🇬🇧 [Read this in English](README.en.md)
 
+![La banda de model-picker: un clic cambia el modelo, y el chip activo despliega sus versiones con precio](docs/demo.gif)
+
+▶ [Ver el video completo (30 s)](https://github.com/juampymdd/claude-code-model-picker/releases/download/v0.4.0/model-picker.mp4)
+
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5    razonamiento profundo
   respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38%
@@ -570,6 +574,8 @@ tests/
   pane.test.tsx      el panel de estadísticas
   update.test.ts     la actualización automática
 ```
+
+El video de arriba es una recreación animada, no una grabación: su fuente está en [`video/`](video/) (HTML + GSAP, renderizado con [HyperFrames](https://github.com/heygen-com/hyperframes): `npx hyperframes render` dentro de esa carpeta).
 
 Al cargar el mod, Claude Code escribe los tipos de su API en `.claude-plugin/types/` (ignorada por git); con eso `tsc -p .` chequea los tipos.
 

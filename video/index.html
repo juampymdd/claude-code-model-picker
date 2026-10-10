@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: 'Fraunces'; font-style: italic; font-weight: 300; src: url('fonts/fraunces-italic-300-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+      @font-face { font-family: 'Fraunces'; font-style: italic; font-weight: 300; src: url('fonts/fraunces-italic-300-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 300; src: url('fonts/fraunces-normal-300-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+      @font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 300; src: url('fonts/fraunces-normal-300-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      @font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 900; src: url('fonts/fraunces-normal-900-latin-ext.woff2') format('woff2'); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+      @font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 900; src: url('fonts/fraunces-normal-900-latin.woff2') format('woff2'); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+      :root {
+        --canvas: #17120e;
+        --panel: #0f0b08;
+        --line: #3a2e24;
+        --fg: #f4ede4;
+        --dim: #a89f94;
+        --accent: #fb923c;
+        --fable: #c084fc;
+        --opus: #fb923c;
+        --sonnet: #38bdf8;
+        --haiku: #34d399;
+        --warn: #fbbf24;
+        --bad: #f87171;
+        --ink: #18181b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--canvas);
+        color: var(--fg);
+        font-family: "JetBrains Mono", monospace;
+      }
+      .scene {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--canvas);
+      }
+      #s2,
+      #s3,
+      #s4,
+      #s5,
+      #s6 {
+        opacity: 0;
+      }
+      .scene-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+        padding: 96px 130px;
+        gap: 44px;
+      }
+
+      /* Decoratives */
+      .glow {
+        position: absolute;
+        z-index: 0;
+        width: 1300px;
+        height: 1300px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(251, 146, 60, 0.2) 0%, rgba(251, 146, 60, 0) 62%);
+      }
+      .grid {
+        position: absolute;
+        z-index: 0;
+        inset: 0;
+        background-image: linear-gradient(rgba(244, 237, 228, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(244, 237, 228, 0.035) 1px, transparent 1px);
+        background-size: 64px 64px;
+      }
+      .ghost {
+        position: absolute;
+        z-index: 0;
+        font-family: "Fraunces", serif;
+        font-weight: 900;
+        font-size: 420px;
+        letter-spacing: -0.05em;
+        color: rgba(244, 237, 228, 0.035);
+        white-space: nowrap;
+      }
+
+      /* Voices */
+      .head {
+        font-family: "Fraunces", serif;
+        font-weight: 900;
+        font-size: 104px;
+        line-height: 1.02;
+        letter-spacing: -0.04em;
+        max-width: 1500px;
+        margin: 0;
+      }
+      .head em {
+        font-style: italic;
+        font-weight: 300;
+        color: var(--accent);
+      }
+      .sub {
+        font-family: "Fraunces", serif;
+        font-weight: 300;
+        font-size: 40px;
+        color: var(--dim);
+        margin: 0;
+        max-width: 1400px;
+      }
+      .kicker {
+        font-size: 24px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      /* The terminal */
+      .term {
+        background: var(--panel);
+        border: 2px solid var(--line);
+        border-radius: 22px;
+        padding: 34px 40px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        font-size: 32px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        white-space: nowrap;
+      }
+      .dim {
+        color: var(--dim);
+      }
+      .bar {
+        width: 12px;
+        height: 44px;
+        border-radius: 3px;
+        background: var(--opus);
+      }
+      .chip {
+        position: relative;
+        padding: 6px 18px;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+      .chip .ring {
+        position: absolute;
+        inset: -6px;
+        border-radius: 14px;
+        border: 3px solid currentColor;
+        opacity: 0;
+      }
+      .fable {
+        color: var(--fable);
+      }
+      .opus {
+        color: var(--opus);
+      }
+      .sonnet {
+        color: var(--sonnet);
+      }
+      .haiku {
+        color: var(--haiku);
+      }
+      .on.opus {
+        background: var(--opus);
+        color: var(--ink);
+      }
+      .meter {
+        display: inline-flex;
+        gap: 5px;
+      }
+      .meter i {
+        width: 20px;
+        height: 22px;
+        border-radius: 4px;
+        background: var(--line);
+        display: block;
+      }
+      .meter i b {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        background: var(--haiku);
+      }
+      .meter.ctx i b {
+        background: var(--warn);
+      }
+      .swap {
+        position: relative;
+        display: inline-block;
+      }
+      .swap span + span {
+        position: absolute;
+        left: 0;
+        top: 0;
+      }
+      .prompt {
+        color: var(--dim);
+      }
+      .caret {
+        display: inline-block;
+        width: 18px;
+        height: 36px;
+        background: var(--fg);
+        vertical-align: middle;
+      }
+
+      /* Dropdown */
+      .drop {
+        position: absolute;
+        left: 0;
+        top: 64px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-weight: 400;
+        color: var(--opus);
+        background: var(--panel);
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        padding: 18px 22px;
+        font-size: 30px;
+      }
+      .drop div {
+        display: flex;
+        gap: 26px;
+        justify-content: space-between;
+        min-width: 470px;
+        padding: 4px 10px;
+        border-radius: 8px;
+      }
+      .drop small {
+        font-size: 26px;
+        color: var(--dim);
+      }
+      .spacer {
+        height: 330px;
+      }
+
+      /* Stats pane */
+      .tabs {
+        display: flex;
+        gap: 10px;
+        font-size: 26px;
+      }
+      .tab {
+        padding: 6px 16px;
+        border-radius: 8px;
+        color: var(--dim);
+      }
+      .tab.on {
+        background: var(--fg);
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .cols {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        height: 210px;
+      }
+      .cols i {
+        display: block;
+        width: 34px;
+        border-radius: 6px 6px 0 0;
+        transform-origin: bottom;
+      }
+      .split {
+        display: flex;
+        gap: 44px;
+      }
+      .split > div {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .hb {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 26px;
+      }
+      .hb span:first-child {
+        width: 240px;
+      }
+      .hb i {
+        display: block;
+        height: 24px;
+        border-radius: 5px;
+        transform-origin: left;
+      }
+      .label {
+        font-size: 22px;
+        letter-spacing: 0.12em;
+        color: var(--dim);
+      }
+      .num {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Agents and games */
+      .agent {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 28px;
+      }
+      .agent .top {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+      }
+      .dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--haiku);
+        display: inline-block;
+      }
+      .agent .bot {
+        font-size: 24px;
+        color: var(--dim);
+        padding-left: 34px;
+      }
+      .spin {
+        display: inline-block;
+        color: var(--accent);
+      }
+      .court {
+        position: relative;
+        height: 300px;
+        border: 2px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .court .net {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        border-left: 4px dashed var(--line);
+      }
+      .court .pad {
+        position: absolute;
+        width: 16px;
+        height: 84px;
+        border-radius: 5px;
+      }
+      .court .ball {
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-radius: 4px;
+        background: var(--fg);
+        left: 60px;
+        top: 150px;
+      }
+      .games {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 24px;
+      }
+      .games span {
+        padding: 5px 14px;
+        border: 2px solid var(--line);
+        border-radius: 8px;
+        color: var(--dim);
+      }
+
+      /* Close */
+      .cmd {
+        font-size: 34px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        background: var(--panel);
+        border: 2px solid var(--line);
+        border-radius: 16px;
+        padding: 26px 34px;
+        align-self: flex-start;
+      }
+      .cmd b {
+        color: var(--accent);
+        font-weight: 400;
+      }
+      .url {
+        font-size: 30px;
+        color: var(--dim);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="30">
+      <!-- 1 · Title -->
+      <div id="s1" class="scene">
+        <div class="grid" data-layout-ignore></div>
+        <div class="glow" data-layout-ignore id="g1" style="right: -380px; top: -420px"></div>
+        <div class="ghost" data-layout-ignore id="gh1" style="left: -40px; bottom: -120px">modelo</div>
+        <div class="scene-content">
+          <div class="kicker" id="s1k">mod para Claude Code</div>
+          <h1 class="head" id="s1h">Elegí el modelo <em>sin salir</em> del prompt.</h1>
+          <p class="sub" id="s1s">model-picker: un clic, y la próxima respuesta la da otro Claude.</p>
+        </div>
+      </div>
+
+      <!-- 2 · The band -->
+      <div id="s2" class="scene">
+        <div class="grid" data-layout-ignore></div>
+        <div class="glow" data-layout-ignore id="g2" style="left: -420px; bottom: -520px"></div>
+        <div class="scene-content">
+          <div class="kicker" id="s2k">la banda</div>
+          <div class="term" id="s2t">
+            <div class="row" id="s2r1">
+              <span class="bar" id="s2bar"></span><span class="dim">MODELO</span>
+              <span class="chip fable">✦ Fable 5.1</span>
+              <span class="chip opus on" id="s2opus">◆ Opus 5.5<i class="ring"></i></span>
+              <span class="chip sonnet" id="s2sonnet">▲ Sonnet 5.5<i class="ring"></i></span>
+              <span class="chip haiku" id="s2haiku">● Haiku 5.5<i class="ring"></i></span>
+              <span class="dim">▦ stats</span>
+            </div>
+            <div class="row dim" id="s2r2" style="font-size: 28px">
+              <span>respondió</span>
+              <span class="swap" style="width: 200px">
+                <span id="s2a1" style="color: var(--opus)">Opus 5.5</span>
+                <span id="s2a2" style="color: var(--sonnet); opacity: 0">Sonnet 5.5</span>
+                <span id="s2a3" style="color: var(--haiku); opacity: 0">Haiku 5.5</span>
+              </span>
+              <span>· sesión ~$0.42 · cache</span>
+              <span class="meter" id="s2m"><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i><i></i></span>
+              <span>94%</span>
+            </div>
+            <div class="row" id="s2r3"><span class="prompt">❯</span><span class="caret" id="s2caret"></span></div>
+          </div>
+          <h2 class="head" id="s2h" style="font-size: 84px">Un clic. <em>Otro modelo.</em></h2>
+        </div>
+      </div>
+
+      <!-- 3 · Versions -->
+      <div id="s3" class="scene">
+        <div class="grid" data-layout-ignore></div>
+        <div class="glow" data-layout-ignore id="g3" style="right: -500px; bottom: -560px"></div>
+        <div class="scene-content">
+          <div class="kicker" id="s3k">versiones</div>
+          <div class="term" id="s3t">
+            <div class="row">
+              <span class="bar"></span><span class="dim">MODELO</span>
+              <span class="chip fable">✦ Fable 5.1</span>
+              <span class="chip opus on" id="s3opus">
+                <span class="swap" style="width: 250px"
+                  ><span id="s3v1">◆ Opus 5.5 ▴</span><span id="s3v2" style="opacity: 0">◆ Opus 4.8 ▾</span></span
+                >
+                <span class="drop" id="s3drop">
+                  <div class="s3d">● Opus 5.5 <small>$4 / $20 por MTok</small></div>
+                  <div class="s3d">○ Opus 5 <small>$5 / $25 por MTok</small></div>
+                  <div class="s3d" id="s3pick">○ Opus 4.8 <small>$5 / $25 por MTok</small></div>
+                  <div class="s3d">○ Opus 4.7 <small>$5 / $25 por MTok</small></div>
+                  <div class="s3d">○ Opus 4.6 <small>$5 / $25 por MTok</small></div>
+                </span>
+              </span>
+              <span class="chip sonnet">▲ Sonnet 5.5</span>
+              <span class="chip haiku">● Haiku 5.5</span>
+            </div>
+            <div class="spacer"></div>
+          </div>
+          <h2 class="head" id="s3h" style="font-size: 84px">Cada versión, <em>con su precio.</em></h2>
+        </div>
+      </div>
+
+      <!-- 4 · Stats -->
+      <div id="s4" class="scene">
+        <div class="grid" data-layout-ignore></div>
+        <div class="glow" data-layout-ignore id="g4" style="left: -300px; top: -520px"></div>
+        <div class="scene-content" style="gap: 34px">
+          <h2 class="head" id="s4h" style="font-size: 84px">Cuánto cuesta, <em>en vivo.</em></h2>
+          <div class="term" id="s4t">
+            <div class="tabs" id="s4tabs">
+              <span class="tab on">1: Costo</span><span class="tab">2: Modelos</span><span class="tab">3: Tools</span
+              ><span class="tab">4: Ritmo</span><span class="tab">5: Agentes</span><span class="tab">6: ▶ Jugar</span>
+            </div>
+            <div class="row dim" id="s4head" style="font-size: 28px">
+              <span>sesión 1h12m ·</span><span style="color: var(--fg)" class="num">~$0.42</span><span>· 31 turnos · contexto</span>
+              <span class="meter ctx" id="s4m"
+                ><i><b></b></i><i><b></b></i><i><b></b></i><i></i><i></i><i></i><i></i><i></i></span
+              ><span>38%</span>
+            </div>
+            <div class="split">
+              <div>
+                <span class="label" id="s4l1">COSTO POR TURNO</span>
+                <div class="cols" id="s4cols"></div>
+              </div>
+              <div>
+                <span class="label" id="s4l2">USO POR MODELO</span>
+                <div class="hb"><span class="opus">◆ Opus 5.5</span><i class="s4b" style="width: 420px; background: var(--opus)"></i><span class="num">$0.31</span></div>
+                <div class="hb"><span class="sonnet">▲ Sonnet 5.5</span><i class="s4b" style="width: 150px; background: var(--sonnet)"></i><span class="num">$0.08</span></div>
+                <div class="hb"><span class="haiku">● Haiku 5.5</span><i class="s4b" style="width: 60px; background: var(--haiku)"></i><span class="num">$0.03</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 · Agents and games -->
+      <div id="s5" class="scene">
+        <div class="grid" data-layout-ignore></div>
+        <div class="glow" data-layout-ignore id="g5" style="right: -420px; top: -480px"></div>
+        <div class="scene-content" style="gap: 34px">
+          <h2 class="head" id="s5h" style="font-size: 84px">Tus agentes. <em>Y 15 juegos</em> para la espera.</h2>
+          <div class="split">
+            <div class="term" id="s5a">
+              <span class="label">AGENTES · 2 corriendo</span>
+              <div class="agent s5ag">
+                <div class="top"><span class="dot s5dot"></span><b style="color: var(--haiku)">Explore</b><span>buscar usos</span><span class="dim num">1m12s · $0.04</span></div>
+                <div class="bot"><span class="haiku">● Haiku 5.5</span> · 12 req · <span class="spin s5spin">◐</span> Grep</div>
+              </div>
+              <div class="agent s5ag">
+                <div class="top"><span class="dot s5dot"></span><b style="color: var(--haiku)">Plan</b><span>diseñar pestaña</span><span class="dim num">3m02s · $0.98</span></div>
+                <div class="bot"><span class="opus">◆ Opus 5.5</span> · 8 req · pensando…</div>
+              </div>
+              <div class="agent s5ag">
+                <div class="top"><span style="color: var(--bad)">✕</span><b style="color: var(--bad)">general</b><span class="dim">correr los tests</span><span class="dim num">3s · error</span></div>
+              </div>
+            </div>
+            <div class="term" id="s5g">
+              <span class="label">▶ JUGAR · Pong</span>
+              <div class="court">
+                <span class="net"></span>
+                <span class="pad" id="s5p1" style="left: 26px; top: 108px; background: var(--opus)"></span>
+                <span class="pad" id="s5p2" style="right: 26px; top: 108px; background: var(--dim)"></span>
+                <span class="ball" id="s5ball"></span>
+              </div>
+              <div class="games" id="s5games">
+                <span>Tetris</span><span>Snake</span><span>2048</span><span>Buscaminas</span><span>Invaders</span><span>Frogger</span><span>Asteroids</span><span>+8</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6 · Close -->
+      <div id="s6" class="scene">
+        <div class="grid" data-layout-ignore></div>
+        <div class="glow" data-layout-ignore id="g6" style="left: 310px; top: -110px"></div>
+        <div class="scene-content">
+          <div class="kicker" id="s6k">gratis · código abierto · MIT</div>
+          <h1 class="head" id="s6h" style="font-size: 150px">model-<em>picker</em></h1>
+          <div class="cmd" id="s6c">
+            <div><span class="dim">❯</span> claude plugin marketplace add <b>juampymdd/claude-code-model-picker</b></div>
+            <div><span class="dim">❯</span> claude plugin install <b>model-picker@model-picker</b></div>
+          </div>
+          <div class="url" id="s6u">github.com/juampymdd/claude-code-model-picker</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      // The cost chart's columns, built before the timeline reads them.
+      var costs = [12, 30, 100, 22, 8, 16, 86, 28, 10, 14, 20, 92, 24, 9, 12, 40, 18, 10];
+      var tints = ["var(--opus)", "var(--opus)", "var(--opus)", "var(--sonnet)", "var(--haiku)", "var(--opus)"];
+      var cols = document.getElementById("s4cols");
+      costs.forEach(function (c, i) {
+        var bar = document.createElement("i");
+        bar.className = "s4c";
+        bar.style.height = c * 2.1 + "px";
+        bar.style.background = tints[i % tints.length];
+        cols.appendChild(bar);
+      });
+
+      // Scene changes: the outgoing scene blurs away as the incoming one comes into focus.
+      function through(from, to, at) {
+        tl.to(from, { opacity: 0, filter: "blur(14px)", scale: 1.04, duration: 0.45, ease: "power2.in" }, at);
+        tl.fromTo(
+          to,
+          { opacity: 0, filter: "blur(14px)", scale: 0.97 },
+          { opacity: 1, filter: "blur(0px)", scale: 1, duration: 0.5, ease: "power2.out" },
+          at + 0.2,
+        );
+      }
+      // The other change: the old scene is pushed out to the left by the new one.
+      function push(from, to, at) {
+        tl.to(from, { x: -1920, duration: 0.6, ease: "expo.inOut" }, at);
+        tl.fromTo(to, { x: 1920, opacity: 1 }, { x: 0, opacity: 1, duration: 0.6, ease: "expo.inOut" }, at);
+        // Once out of the frame, the old scene is put away.
+        tl.set(from, { opacity: 0 }, at + 0.6);
+      }
+      // A press on a chip: a ring leaves it and the chip gives a little.
+      function press(chip, at) {
+        tl.fromTo(chip + " .ring", { opacity: 0.9, scale: 0.9 }, { opacity: 0, scale: 1.35, duration: 0.5, ease: "power2.out" }, at);
+        tl.fromTo(chip, { scale: 0.92 }, { scale: 1, duration: 0.4, ease: "back.out(3)" }, at);
+      }
+
+      // Ambient: each glow breathes for the length of its scene.
+      ["#g1", "#g2", "#g3", "#g4", "#g5", "#g6"].forEach(function (g, i) {
+        tl.fromTo(g, { scale: 0.92 }, { scale: 1.08, duration: 2.5, ease: "sine.inOut", repeat: 11, yoyo: true }, 0);
+      });
+      tl.to("#gh1", { x: 90, duration: 4.6, ease: "none" }, 0);
+
+      // 1 · Title (0 - 4.2)
+      tl.from("#s1k", { opacity: 0, x: -30, duration: 0.5, ease: "power2.out" }, 0.25);
+      tl.from("#s1h", { opacity: 0, y: 70, duration: 0.8, ease: "expo.out" }, 0.45);
+      tl.from("#s1s", { opacity: 0, y: 30, duration: 0.6, ease: "power3.out" }, 1.0);
+
+      through("#s1", "#s2", 4.0);
+
+      // 2 · The band (4.2 - 10.4)
+      tl.from("#s2k", { opacity: 0, x: -30, duration: 0.4, ease: "power2.out" }, 4.4);
+      tl.from("#s2t", { opacity: 0, y: 50, scale: 0.97, duration: 0.6, ease: "expo.out" }, 4.5);
+      tl.from("#s2r1 > *", { opacity: 0, y: 18, duration: 0.35, ease: "back.out(2)", stagger: 0.07 }, 4.8);
+      tl.from("#s2r2", { opacity: 0, duration: 0.4, ease: "power1.out" }, 5.3);
+      tl.from("#s2m b", { scaleX: 0, transformOrigin: "left", duration: 0.25, ease: "power3.out", stagger: 0.06 }, 5.4);
+      tl.from("#s2r3", { opacity: 0, duration: 0.3, ease: "power1.out" }, 5.5);
+      tl.to("#s2caret", { opacity: 0, duration: 0.01, repeat: 9, repeatDelay: 0.5, yoyo: true }, 5.6);
+      // A click on Sonnet, then on Haiku: the fill, the bar and "respondió" follow.
+      press("#s2sonnet", 6.5);
+      tl.to("#s2opus", { backgroundColor: "rgba(251,146,60,0)", color: "#fb923c", duration: 0.25, ease: "power2.out" }, 6.5);
+      tl.to("#s2sonnet", { backgroundColor: "#38bdf8", color: "#18181b", duration: 0.25, ease: "power2.out" }, 6.5);
+      tl.to("#s2bar", { backgroundColor: "#38bdf8", duration: 0.25 }, 6.5);
+      tl.to("#s2a1", { opacity: 0, y: -14, duration: 0.2 }, 6.9);
+      tl.fromTo("#s2a2", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 7.0);
+
+      press("#s2haiku", 8.2);
+      tl.to("#s2sonnet", { backgroundColor: "rgba(56,189,248,0)", color: "#38bdf8", duration: 0.25, ease: "power2.out" }, 8.2);
+      tl.to("#s2haiku", { backgroundColor: "#34d399", color: "#18181b", duration: 0.25, ease: "power2.out" }, 8.2);
+      tl.to("#s2bar", { backgroundColor: "#34d399", duration: 0.25 }, 8.2);
+      tl.to("#s2a2", { opacity: 0, y: -14, duration: 0.2 }, 8.6);
+      tl.fromTo("#s2a3", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" }, 8.7);
+
+      tl.from("#s2h", { opacity: 0, y: 40, duration: 0.6, ease: "expo.out" }, 6.9);
+
+      push("#s2", "#s3", 10.2);
+
+      // 3 · Versions (10.8 - 15.4)
+      tl.from("#s3k", { opacity: 0, x: -30, duration: 0.4, ease: "power2.out" }, 10.9);
+      tl.from("#s3drop", { opacity: 0, y: -16, scaleY: 0.6, transformOrigin: "top", duration: 0.35, ease: "back.out(2)" }, 11.3);
+      tl.from(".s3d", { opacity: 0, x: -18, duration: 0.3, ease: "power3.out", stagger: 0.08 }, 11.45);
+      tl.from("#s3h", { opacity: 0, y: 40, duration: 0.6, ease: "expo.out" }, 11.6);
+      // The pick: the row lights, then the chip takes its version.
+      tl.to("#s3pick", { backgroundColor: "#fb923c", color: "#18181b", duration: 0.2, ease: "power2.out" }, 13.1);
+      tl.to("#s3pick small", { color: "#18181b", duration: 0.2 }, 13.1);
+      tl.fromTo("#s3pick", { scale: 0.96 }, { scale: 1, duration: 0.35, ease: "back.out(3)" }, 13.1);
+      tl.to("#s3v1", { opacity: 0, duration: 0.15 }, 13.5);
+      tl.to("#s3v2", { opacity: 1, duration: 0.2 }, 13.55);
+      tl.fromTo("#s3opus", { scale: 0.94 }, { scale: 1, duration: 0.4, ease: "back.out(3)" }, 13.5);
+
+      through("#s3", "#s4", 15.2);
+
+      // 4 · Stats (15.6 - 21)
+      tl.from("#s4h", { opacity: 0, y: 40, duration: 0.6, ease: "expo.out" }, 15.6);
+      tl.from("#s4t", { opacity: 0, y: 50, scale: 0.97, duration: 0.6, ease: "power3.out" }, 15.8);
+      tl.from("#s4tabs .tab", { opacity: 0, y: -12, duration: 0.3, ease: "back.out(2)", stagger: 0.06 }, 16.1);
+      tl.from("#s4head", { opacity: 0, duration: 0.4, ease: "power1.out" }, 16.4);
+      tl.from("#s4m b", { scaleX: 0, transformOrigin: "left", duration: 0.25, ease: "power3.out", stagger: 0.09 }, 16.6);
+      tl.from("#s4l1", { opacity: 0, duration: 0.3 }, 16.7);
+      tl.from(".s4c", { scaleY: 0, duration: 0.55, ease: "power3.out", stagger: 0.04 }, 16.8);
+      tl.from("#s4l2", { opacity: 0, duration: 0.3 }, 17.4);
+      tl.from(".hb", { opacity: 0, x: 20, duration: 0.35, ease: "power2.out", stagger: 0.12 }, 17.5);
+      tl.from(".s4b", { scaleX: 0, duration: 0.7, ease: "expo.out", stagger: 0.12 }, 17.6);
+      // A new turn lands: the latest column grows.
+      tl.to(".s4c:last-child", { scaleY: 2.6, duration: 0.5, ease: "back.out(2)" }, 19.2);
+
+      push("#s4", "#s5", 20.8);
+
+      // 5 · Agents and games (21.4 - 26.2)
+      tl.from("#s5h", { opacity: 0, y: 40, duration: 0.6, ease: "expo.out" }, 21.5);
+      tl.from("#s5a", { opacity: 0, x: -50, duration: 0.55, ease: "power3.out" }, 21.7);
+      tl.from("#s5g", { opacity: 0, x: 50, duration: 0.55, ease: "power3.out" }, 21.85);
+      tl.from(".s5ag", { opacity: 0, x: 40, duration: 0.4, ease: "back.out(1.6)", stagger: 0.18 }, 22.1);
+      tl.from("#s5games span", { opacity: 0, scale: 0.8, duration: 0.25, ease: "back.out(2)", stagger: 0.05 }, 22.6);
+      tl.fromTo(".s5dot", { scale: 1, opacity: 1 }, { scale: 0.6, opacity: 0.5, duration: 0.45, ease: "sine.inOut", repeat: 9, yoyo: true }, 22.0);
+      tl.to(".s5spin", { rotation: 1440, duration: 4.2, ease: "none" }, 22.0);
+      // A rally: the ball crosses, each paddle meets it.
+      tl.to("#s5ball", { x: 640, y: -90, duration: 0.9, ease: "none" }, 22.2);
+      tl.to("#s5p2", { y: -92, duration: 0.8, ease: "power2.out" }, 22.2);
+      tl.to("#s5ball", { x: 0, y: 70, duration: 0.9, ease: "none" }, 23.1);
+      tl.to("#s5p1", { y: 66, duration: 0.8, ease: "power2.out" }, 23.1);
+      tl.to("#s5ball", { x: 640, y: 20, duration: 0.9, ease: "none" }, 24.0);
+      tl.to("#s5p2", { y: 18, duration: 0.8, ease: "power2.out" }, 24.0);
+      tl.to("#s5ball", { x: 0, y: -60, duration: 0.9, ease: "none" }, 24.9);
+      tl.to("#s5p1", { y: -62, duration: 0.8, ease: "power2.out" }, 24.9);
+
+      through("#s5", "#s6", 26.0);
+
+      // 6 · Close (26.4 - 30)
+      tl.from("#s6k", { opacity: 0, y: -20, duration: 0.4, ease: "power2.out" }, 26.5);
+      tl.from("#s6h", { opacity: 0, scale: 0.9, y: 40, duration: 0.8, ease: "expo.out" }, 26.6);
+      tl.from("#s6c", { opacity: 0, x: -40, duration: 0.5, ease: "back.out(1.4)" }, 27.2);
+      tl.from("#s6c > div", { opacity: 0, x: -24, duration: 0.35, ease: "power3.out", stagger: 0.25 }, 27.35);
+      tl.from("#s6u", { opacity: 0, duration: 0.5, ease: "power1.out" }, 27.6);
+      tl.to("#s6 .scene-content", { opacity: 0, duration: 0.5, ease: "power2.in" }, 29.4);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

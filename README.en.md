@@ -8,6 +8,10 @@
 
 > The mod's interface is in Spanish (`MODELO`, `respondió`, `sesión`, `turno`, the `/modelo` command). This page translates each label.
 
+![model-picker's band: a click switches the model, and the active chip lists its versions with prices](docs/demo.gif)
+
+▶ [Watch the full video (30 s, in Spanish)](https://github.com/juampymdd/claude-code-model-picker/releases/download/v0.4.0/model-picker.mp4)
+
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5    razonamiento profundo
   respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38%
@@ -544,6 +548,8 @@ tests/
   pane.test.tsx      the stats pane
   update.test.ts     the self-update
 ```
+
+The video above is an animated recreation, not a recording: its source is in [`video/`](video/) (HTML + GSAP, rendered with [HyperFrames](https://github.com/heygen-com/hyperframes): `npx hyperframes render` inside that folder).
 
 When it loads the mod, Claude Code writes its API's types into `.claude-plugin/types/` (git-ignored); with them `tsc -p .` type-checks the mod.
 
