@@ -19,7 +19,21 @@ export type Stats = {
 }
 
 // The stats pane's tabs.
-export type Tab = 'costo' | 'modelos' | 'tools' | 'ritmo' | 'agentes' | 'juegos'
+export type Tab = 'costo' | 'modelos' | 'tools' | 'ritmo' | 'agentes' | 'juegos' | 'teoria'
+
+// How much the theory notes explain: a concept from scratch, or only the decision and its trade-off.
+export type Level = 'aprender' | 'experto'
+
+// One concept the agent said it applied, as the theory tab lists it.
+export type Note = {
+  id: number
+  // `$.clock.now()` when it was told.
+  at: number
+  title: string
+  text: string
+  // The file, function or part it applies to; absent when the agent named none.
+  where?: string
+}
 
 // A game of the stats pane, by its id, and the best score kept of each.
 export type Game = string
@@ -126,6 +140,10 @@ declare module 'claude-code' {
       best: Best
       // Whether the list of games is open.
       menu: boolean
+      // The theory tab: whether the agent is asked for notes, how deep, and the notes it told.
+      theory: boolean
+      level: Level
+      notes: Note[]
     }
   }
 }

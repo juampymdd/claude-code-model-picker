@@ -9,9 +9,10 @@ import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
 import { liveAgents, plainData } from './rows'
 import type { LiveProps } from './rows'
-import type { Best } from '../types'
+import type { Best, Level } from '../types'
 import { paint } from './paint'
 import { priceLabel, statsSegs, tally } from './stats'
+import { addNote, isLevel, LEVELS, noteOf, SECTION_ID, sectionFor, SPEC, TOOL } from './theory'
 import { selfUpdate } from './update'
 import type { Host } from './update'
 
@@ -47,6 +48,14 @@ const best = atom({ plugin: 'model-picker', key: 'best' } as const, {})
 // Whether the list of games is open.
 const menu = atom({ plugin: 'model-picker', key: 'menu' } as const, false)
 
+// The theory tab: whether the agent is asked for notes (it is, unless turned off), how deep, and the notes.
+const theoryOn = atom({ plugin: 'model-picker', key: 'theory' } as const, true)
+const levelOf = atom({ plugin: 'model-picker', key: 'level' } as const, 'aprender')
+const notes = atom({ plugin: 'model-picker', key: 'notes' } as const, [])
+
+// The key the notes' level is kept under between sessions.
+const LEVEL_KEY = 'theory.level'
+
 // The key the best scores are kept under between sessions.
 const BEST_KEY = 'games.best'
 
@@ -54,7 +63,7 @@ const FLASH_MS = 600
 const AGENT_POLL_MS = 2000
 const FLASH_FILL = '#FFFFFF'
 
-const OPEN = { id: PANE, title: 'Estadísticas', focus: true, closeOnEscape: true, columns: 64 } as const
+const OPEN = { id: PANE, title: 'Estadísticas', focus: true, closeOnEscape: true, columns: 72 } as const
 
 // Shows the stats pane, or closes it when it is up; says whether it is up now.
 const togglePane = async ($: EngineInterface): Promise<boolean> => {
@@ -128,6 +137,16 @@ const pollAgents = async ($: EngineInterface): Promise<void> => {
   }
 }
 
+// Sets how deep the notes go, for this session and the next ones.
+const setLevel = async ($: EngineInterface, level: Level): Promise<void> => {
+  await update($, levelOf, () => level)
+  try {
+    await $.store.set(LEVEL_KEY, level)
+  } catch {
+    // kept for the session all the same
+  }
+}
+
 // The host as the self-update reaches it.
 const hostOf = ($: EngineInterface): Host => ({
   name: $.plugin.name,
@@ -165,6 +184,17 @@ export const register: Register = (on, options) => {
       // no store: the scores start at zero
     }
 
+    // The tool the agent tells its notes through, and the level they were last left at.
+    try {
+      if (options.theory === false) await update($, theoryOn, () => false)
+      await $.tool.register(SPEC)
+
+      const kept = await $.store.get(LEVEL_KEY)
+      if (isLevel(kept)) await update($, levelOf, () => kept)
+    } catch {
+      // without the tool the tab stays empty
+    }
+
     try {
       $.clock.every(AGENT_POLL_MS, () => void pollAgents($))
     } catch {
@@ -189,6 +219,20 @@ export const register: Register = (on, options) => {
       if (!isOn) await update($, tabOf, was => (was === 'juegos' ? 'costo' : was))
 
       return { text: `Juegos: ${isOn ? 'habilitados (pestaña ▶ Jugar del panel de estadísticas)' : 'deshabilitados'}` }
+    }
+
+    if (text === 'teoria' || text.startsWith('teoria ')) {
+      const word = text.slice('teoria'.length).trim()
+      if (isLevel(word)) await setLevel($, word)
+
+      const isOn = word === 'on' || isLevel(word) ? true : word === 'off' ? false : word === '' ? !(await read($, theoryOn)) : undefined
+      if (isOn === undefined) return { text: `Uso: /${COMMAND} teoria [on | off | aprender | experto]` }
+
+      await update($, theoryOn, () => isOn)
+
+      return {
+        text: isOn ? `Notas de teoría: encendidas, nivel ${LEVELS[await read($, levelOf)]} (pestaña Teoría del panel)` : 'Notas de teoría: apagadas',
+      }
     }
 
     if (text === 'stats') {
@@ -232,6 +276,25 @@ export const register: Register = (on, options) => {
 
     return response
   })
+
+  // While the notes are on and the request offers their tool, the system prompt asks for them.
+  on('prompt.compose', async ($, e, next) => {
+    const composed = await next(e)
+
+    try {
+      if (!e.tools.includes(TOOL) || !(await read($, theoryOn))) return composed
+
+      const text = sectionFor(await read($, levelOf))
+      const others = composed.sections.filter(section => section.id !== SECTION_ID)
+
+      return { sections: [...others, { id: SECTION_ID, text, scope: 'session' as const }] }
+    } catch {
+      return composed
+    }
+  })
+
+  // A note is the agent's own to tell: it changes nothing, so it is never asked about.
+  on('tool.check', { tool: 'mcp__model-picker__teoria' }, () => ({ decision: 'allow' as const })).catch(($, e, next) => next(e))
 
   on('turn.start', async ($, e, next) => {
     try {
@@ -283,6 +346,17 @@ export const register: Register = (on, options) => {
 
   // Every tool call of every loop is timed and counted, and none is ever changed.
   on('tool.call', async ($, e, next) => {
+    // The mod's own tool: the note goes to the theory tab, and is no tool call of the session's.
+    if (e.tool === TOOL) {
+      const fields = noteOf(e as unknown as Record<string, unknown>)
+      if (fields === undefined) return { deny: 'La nota necesita `title` y `explanation`, los dos con texto.' }
+
+      const at = await $.clock.now()
+      await update($, notes, was => addNote(was, fields, at))
+
+      return { result: `Anotado en el panel: ${fields.title}` }
+    }
+
     const started = await $.clock.now()
     const agentId = e.agentId
     let isError = false
@@ -319,6 +393,7 @@ export const register: Register = (on, options) => {
     if (e.reason === 'clear') {
       await update($, history, () => EMPTY)
       await update($, stats, () => null)
+      await update($, notes, () => [])
     }
 
     return next(e)
@@ -364,6 +439,9 @@ export const register: Register = (on, options) => {
         game,
         best: await read($, best),
         menu: await read($, menu),
+        theory: await read($, theoryOn),
+        level: await read($, levelOf),
+        notes: await read($, notes),
       },
       {
         onTab: next => update($, tabOf, () => next),
@@ -373,6 +451,9 @@ export const register: Register = (on, options) => {
           await update($, menu, () => false)
         },
         onMenu: isOpen => update($, menu, () => isOpen),
+        onTheory: isOn => update($, theoryOn, () => isOn),
+        onLevel: level => setLevel($, level),
+        onForget: () => update($, notes, () => []),
       },
       // Where the surface runs surface modules, the rows are drawn in motion and the games can run.
       'Client' in parts ? props => <parts.Client key="live" module="./live.tsx" props={plainData(props)} /> : undefined,

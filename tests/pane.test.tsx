@@ -269,8 +269,8 @@ test('the drawing moves: clocks run and the dots turn while an agent works', asy
 test('the tabs fit the pane: every name when there is room, only the shown one when there is not', async ($, on) => {
   world(on)
 
-  const wide = await $.ui.mount({ ...pane(64), surface: 'terminal' })
-  for (const name of [/^Costo $/, /^Modelos $/, /^Tools $/, /^Ritmo $/, /^Agentes $/]) {
+  const wide = await $.ui.mount({ ...pane(72), surface: 'terminal' })
+  for (const name of [/^Costo $/, /^Modelos $/, /^Tools $/, /^Ritmo $/, /^Agentes $/, /^Teoría $/]) {
     expect(await wide.find({ type: 'Text', text: name })).toBeDefined()
   }
   await wide.unmount()

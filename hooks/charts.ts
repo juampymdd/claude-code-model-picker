@@ -87,6 +87,27 @@ export const stack = (parts: readonly number[], max: number, width: number): num
 }
 
 /** `part` as a whole-number percent of `whole`; `–` when `whole` is none. */
+/** A text broken into lines of at most `width` cells, at its spaces; a longer word is cut. */
+export const wrap = (text: string, width: number): string[] => {
+  const room = Math.max(1, Math.floor(width))
+  const lines: string[] = []
+  let current = ''
+
+  for (const word of text.split(/\s+/).filter(part => part !== '')) {
+    let rest = [...word]
+    if (current !== '' && [...current].length + 1 + rest.length <= room) {
+      current = `${current} ${word}`
+      continue
+    }
+
+    if (current !== '') lines.push(current)
+    for (; rest.length > room; rest = rest.slice(room)) lines.push(rest.slice(0, room).join(''))
+    current = rest.join('')
+  }
+
+  return current === '' ? lines : [...lines, current]
+}
+
 export const pct = (part: number, whole: number): string =>
   whole <= 0 ? '–' : `${Math.round((part / whole) * 100)}%`
 

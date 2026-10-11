@@ -1,7 +1,7 @@
 /** @jsx hyper */
 import type { EngineInterface, RenderNode } from 'claude-code'
 
-import type { Game, Tab } from '../types'
+import type { Game, Level, Tab } from '../types'
 import { gameOf, GAMES } from './catalog'
 import { paint } from './paint'
 import type { Hyper } from './paint'
@@ -17,6 +17,7 @@ export const TABS: readonly { tab: Tab; label: string; hotkey: string }[] = [
   { tab: 'ritmo', label: 'Ritmo', hotkey: '4' },
   { tab: 'agentes', label: 'Agentes', hotkey: '5' },
   { tab: 'juegos', label: '▶ Jugar', hotkey: '6' },
+  { tab: 'teoria', label: 'Teoría', hotkey: '7' },
 ]
 
 export type Parts = Pick<ReturnType<EngineInterface['ui']['resolve']>, 'Box' | 'Text' | 'Button'>
@@ -30,6 +31,9 @@ export type Handlers = {
   onShowDone: (show: boolean) => unknown
   onGame: (game: Game) => unknown
   onMenu: (open: boolean) => unknown
+  onTheory: (isOn: boolean) => unknown
+  onLevel: (level: Level) => unknown
+  onForget: () => unknown
 }
 
 // Draws the game in play; the hooks module makes it, as it makes `Live`.
@@ -107,6 +111,21 @@ export const drawPane = (hyper: Hyper, parts: Parts, view: View, on: Handlers, l
       {isGames &&
         !isMenu &&
         (play === undefined ? <Text dimColor>Los juegos corren en la terminal y en la app de escritorio.</Text> : play())}
+      {view.tab === 'teoria' && (
+        <Box>
+          <Button key="theory" plain dimColor onPress={() => on.onTheory(view.theory === false)}>
+            <Text>{view.theory === false ? ' encender notas ' : ' apagar notas '}</Text>
+          </Button>
+          <Button key="level" plain dimColor onPress={() => on.onLevel(view.level === 'experto' ? 'aprender' : 'experto')}>
+            <Text>{view.level === 'experto' ? ' nivel: explicar desde cero ' : ' nivel: solo decisiones '}</Text>
+          </Button>
+          {(view.notes?.length ?? 0) > 0 && (
+            <Button key="forget" plain dimColor onPress={() => on.onForget()}>
+              <Text>{' borrar '}</Text>
+            </Button>
+          )}
+        </Box>
+      )}
       {view.tab === 'agentes' && hasDone && (
         <Box>
           <Button key="done" plain dimColor onPress={() => on.onShowDone(!view.showDone)}>

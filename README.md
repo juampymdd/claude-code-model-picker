@@ -54,6 +54,7 @@ Con el dropdown de versiones abierto:
 - **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
 - **Panel de estadísticas** animado, con gráficos de costo, modelos, herramientas y ritmo de la sesión, y los **agentes en vivo**: qué hace cada uno, con qué modelo y cuánto gasta.
 - **15 juegos** en el panel (Pong, Tetris, Snake, Buscaminas, 2048… y dos hechos con los datos de tu sesión), en la pestaña [`▶ Jugar`](#6--jugar).
+- **Pestaña [Teoría](#7--teoría)**: mientras trabaja, Claude anota los conceptos y decisiones de diseño que aplica, explicados desde cero o solo con el trade-off.
 - **Comando `/modelo`** para hacer lo mismo desde el teclado.
 - **Se actualiza solo**: una vez por día busca una versión nueva y la instala. Se puede [apagar](#apagarlo).
 
@@ -156,6 +157,7 @@ Después, en una sesión nueva, escribí `/modelo`. Si responde `Modelo: Opus 5.
 | `/modelo auto` | Vuelve al modelo de la sesión |
 | `/modelo stats` | Abre o cierra el [panel de estadísticas](#el-panel-de-estadísticas) |
 | `/modelo juegos` | Oculta o muestra la pestaña de [juegos](#6--jugar) del panel |
+| `/modelo teoria` | Apaga o enciende las [notas de teoría](#7--teoría); con `aprender` o `experto` cambia el nivel |
 
 Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -188,10 +190,10 @@ Un panel con gráficos de toda la sesión. Se abre y se cierra con el botón **`
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar   7: Teoría
 ```
 
-Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `6`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
+Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `7`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
 
 ### 1 · Costo
 
@@ -329,11 +331,49 @@ Cosas a saber:
 
 - Los récords se guardan entre sesiones. En Buscaminas el récord premia el menor tiempo; en Sokoban cuenta los niveles resueltos; el Juego de la vida y la Carrera no tienen.
 - La terminal no avisa cuando se suelta una tecla: cada pulsación mueve un paso (mantenerla apretada repite). Asteroids y Breakout se juegan mejor con el mouse.
-- Mientras el juego tiene el foco, las teclas `1` a `6` de las pestañas pueden no responder: `Esc` primero.
+- Mientras el juego tiene el foco, las teclas `1` a `7` de las pestañas pueden no responder: `Esc` primero.
 - Cada juego necesita un ancho mínimo (entre 20 y 38 columnas) y avisa si el panel no llega.
 - Los juegos corren en la terminal y en la app de escritorio.
 
 **Ocultar la pestaña:** `/modelo juegos` la saca o la vuelve a poner para la sesión. Para no verla nunca, `/config` → **Juegos en el panel** (`model-picker.games`) → desactivar.
+
+### 7 · Teoría
+
+Mientras Claude trabaja, anota acá **la teoría detrás de lo que está armando**: cada concepto, patrón, algoritmo o decisión de diseño que aplica, explicado en el momento en que lo usa. Sirve para aprender mirando, sin frenar el trabajo para preguntar.
+
+```
+TEORÍA · 2 notas · nivel aprendiendo
+────────────────────────────────────────────────────────────────────
+◆ Debounce                                                       12s
+  src/hooks/useSearch.ts
+  Es esperar a que el usuario deje de escribir antes de disparar la
+  búsqueda. Evita una request por tecla. Lo elegí en vez de throttle
+  porque acá importa el texto final, no los intermedios.
+
+◆ Índice compuesto                                              2m10s
+  migrations/0008_meals.sql
+  Un índice sobre dos columnas juntas (user_id, fecha)…
+
+ apagar notas   nivel: solo decisiones   borrar
+```
+
+La nota más nueva va arriba. Cada una tiene el concepto, dónde se aplica (si Claude lo dijo), la explicación y hace cuánto se anotó. Las notas no aparecen en la conversación ni cuentan en la pestaña Tools.
+
+Hay dos niveles:
+
+| Nivel | Qué escribe Claude |
+| --- | --- |
+| `aprender` (por defecto) | El concepto desde cero, en 2 a 4 oraciones: qué es, qué problema resuelve y por qué lo eligió frente a la alternativa obvia |
+| `experto` | Solo la decisión y su trade-off, en 1 o 2 oraciones |
+
+Los botones de abajo apagan o encienden las notas, cambian el nivel y borran la lista. Lo mismo con el comando: `/modelo teoria` (alterna), `/modelo teoria on`, `off`, `aprender` o `experto`. El nivel queda guardado entre sesiones. Para que arranque apagado: `/config` → **Notas de teoría** (`model-picker.theory`) → off.
+
+A saber:
+
+- Funciona con una herramienta propia del mod (`mcp__model-picker__teoria`) y un párrafo que el mod agrega al system prompt pidiéndole a Claude que la use. Cuántas notas escribe depende del modelo: es un pedido, no una garantía.
+- Tiene costo: el párrafo suma unos 150 tokens de entrada por request (quedan en cache) y cada nota son tokens de salida. Con las notas apagadas el párrafo no se envía.
+- Solo anota el loop principal; los subagentes no reciben el pedido.
+- Se guardan las últimas 100 notas y se muestran las 30 más nuevas. Un `/clear` las borra.
 
 ### Animaciones
 
@@ -391,11 +431,13 @@ El mod registra estos hooks:
 
 | Hook | Para qué |
 | --- | --- |
-| `session.start` | Registra el comando `/modelo` |
+| `session.start` | Registra el comando `/modelo` y la herramienta de las notas de teoría |
 | `command.run` | Responde a `/modelo` |
 | `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, suma lo que la API informó de la respuesta |
 | `turn.start`, `turn.complete` | Abren y cierran cada turno en el historial del panel de estadísticas |
-| `tool.call` | Cuenta y cronometra cada herramienta sin modificar la llamada |
+| `tool.call` | Cuenta y cronometra cada herramienta sin modificar la llamada; responde la de las notas de teoría |
+| `tool.check` | Aprueba la herramienta de las notas, que no cambia nada, para que no pida permiso |
+| `prompt.compose` | Con las notas encendidas, agrega al system prompt el pedido de anotarlas |
 | `agent.spawn` | Anota cada agente que se lanza, con su tipo y descripción |
 | `session.end` | Reinicia los números con un `/clear` |
 | `ui.render` | Dibuja la banda arriba del prompt y el panel de estadísticas |
@@ -559,6 +601,7 @@ hooks/
   sokoban.ts life.ts
   sessiongames.ts    Token Invaders y la Carrera de agentes
   pane.tsx           las pestañas y el armado del panel
+  theory.ts          las notas de teoría: la herramienta, el pedido y la lista
   update.ts          la actualización automática
 types/
   index.d.ts         contrato del estado que guarda el mod
@@ -572,6 +615,7 @@ tests/
   rules.test.ts      las reglas de los demás juegos
   arcade.test.tsx    los juegos corriendo en el panel
   pane.test.tsx      el panel de estadísticas
+  theory.test.tsx    las notas de teoría
   update.test.ts     la actualización automática
 ```
 

@@ -1,7 +1,7 @@
 {
   "name": "model-picker",
-  "version": "0.4.0",
-  "description": "A band above the prompt to pick which model, and which version of it, runs the next requests, with cost, tokens and cache stats and an animated pane of charts and live agents for the whole session.",
+  "version": "0.5.0",
+  "description": "A band above the prompt to pick which model, and which version of it, runs the next requests, with cost, tokens and cache stats an animated pane of charts and live agents for the whole session, and a tab where Claude notes the theory behind what it builds.",
   "author": {
     "name": "Juan Pablo Maddoni"
   },
@@ -18,6 +18,12 @@
       "type": "boolean",
       "title": "Juegos en el panel",
       "description": "Muestra en el panel de estadísticas la pestaña ▶ Jugar, con Pong y Space Invaders.",
+      "default": true
+    },
+    "theory": {
+      "type": "boolean",
+      "title": "Notas de teoría",
+      "description": "Le pide a Claude que anote, en la pestaña Teoría del panel, los conceptos que aplica mientras trabaja.",
       "default": true
     }
   }

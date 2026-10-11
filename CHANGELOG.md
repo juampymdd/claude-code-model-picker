@@ -2,6 +2,19 @@
 
 Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones, [SemVer](https://semver.org/lang/es/).
 
+## [0.5.0] - 2026-10-11
+
+### Agregado
+
+- Pestaña **Teoría** en el panel: mientras trabaja, Claude anota los conceptos, patrones y decisiones de diseño que aplica, con dónde los aplica y hace cuánto. Las notas no aparecen en la conversación ni cuentan como herramientas.
+- Dos niveles para las notas: `aprender` (el concepto desde cero, por defecto) y `experto` (solo la decisión y su trade-off). El nivel queda guardado entre sesiones.
+- Botones en la pestaña para apagar o encender las notas, cambiar el nivel y borrar la lista; subcomando `/modelo teoria [on | off | aprender | experto]`; opción `model-picker.theory` en `/config`.
+- Herramienta `mcp__model-picker__teoria`, por la que Claude dicta las notas, y un párrafo en el system prompt que se las pide mientras están encendidas.
+
+### Cambiado
+
+- El panel se abre con 72 columnas en vez de 64, para que entren los nombres de las siete pestañas.
+
 ## [0.4.0] - 2026-10-10
 
 ### Agregado
@@ -54,6 +67,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Comando `/modelo`.
 - Licencia MIT.
 
+[0.5.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.1.0...v0.2.0

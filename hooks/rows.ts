@@ -2,11 +2,12 @@
 // them marked to move (a clock, a spinner, a bar that grows). `paint.tsx`
 // draws them, still or animated; nothing here touches the engine.
 
-import type { AgentStat, Best, Game, History, Tab, Turn } from '../types'
-import { cell, duration, hbar, pct, sparkline, stack } from './charts'
+import type { AgentStat, Best, Game, History, Level, Note, Tab, Turn } from '../types'
+import { cell, duration, hbar, pct, sparkline, stack, wrap } from './charts'
 import { activity, isDone, pace } from './history'
 import { pickOfId } from './models'
 import { count, money } from './stats'
+import { LEVELS } from './theory'
 
 // One run of text in a row. `fx` says how it moves when the row is animated:
 //  pulse  alternates `text` and `alt`        spin   a spinner in its place
@@ -52,6 +53,10 @@ export type View = {
   game?: Game
   best?: Best
   menu?: boolean
+  // The theory tab: whether notes are asked for, how deep, and the ones told.
+  theory?: boolean
+  level?: Level
+  notes?: readonly Note[]
   // From `$.session.usage()`: when the session started, how full its context is, Claude Code's own cost.
   usage?: { startedAt?: number; percent?: number; usd?: number }
 }
@@ -64,6 +69,9 @@ const REASONS: Readonly<Record<NonNullable<Turn['reason']>, string>> = {
   refusal: 'rechazo',
   error: 'error',
 }
+const NO_NOTES = 'Sin notas todavía. Aparecen cuando Claude aplica un concepto mientras trabaja.'
+const NOTES_OFF = 'Notas apagadas: Claude no las escribe. El botón de abajo las enciende.'
+const NOTES_SHOWN = 30
 const TABLE_ROWS = 50
 const LIST_ROWS = 20
 const DONE_SHOWN = 10
@@ -372,6 +380,36 @@ const agentRows = (view: View): Row[] => {
   return rows
 }
 
+const theoryRows = (view: View): Row[] => {
+  const notes = view.notes ?? []
+  const room = Math.max(8, view.columns - 2)
+  const rows: Row[] = [
+    line(dim(`TEORÍA · ${notes.length} ${notes.length === 1 ? 'nota' : 'notas'} · nivel ${LEVELS[view.level ?? 'aprender']}`)),
+    line({ text: '─'.repeat(Math.max(1, view.columns)), color: 'subtle' }),
+  ]
+
+  if (view.theory === false) rows.push(line(dim(NOTES_OFF)))
+  else if (notes.length === 0) rows.push(line(dim(NO_NOTES)))
+
+  // The newest first: it is the one being built now.
+  for (const note of [...notes].reverse().slice(0, NOTES_SHOWN)) {
+    rows.push({
+      key: `n:${note.id}`,
+      segs: [
+        { text: '◆ ', color: 'claude' },
+        { text: cell(note.title, Math.max(4, view.columns - 2 - 9)), bold: true },
+        dim(' '),
+        { text: '', fx: 'clock', since: note.at, width: 7, align: 'right', dim: true },
+      ],
+    })
+    if (note.where !== undefined) rows.push(line({ text: `  ${cell(note.where, room)}`, color: 'claude', dim: true }))
+    for (const text of wrap(note.text, room)) rows.push(line(plain(`  ${text}`)))
+    rows.push(line(plain(' ')))
+  }
+
+  return rows
+}
+
 const TABS: Readonly<Record<Tab, (view: View) => Row[]>> = {
   costo: costRows,
   modelos: modelRows,
@@ -380,6 +418,7 @@ const TABS: Readonly<Record<Tab, (view: View) => Row[]>> = {
   agentes: agentRows,
   // The games draw themselves (`games.tsx`).
   juegos: () => [],
+  teoria: theoryRows,
 }
 
 /** The chosen tab's rows; a session with nothing yet says so (the agents tab says its own). */
@@ -387,7 +426,9 @@ export const rowsFor = (view: View): Row[] => {
   const h = view.history
   const isEmpty = h.total.steps === 0 && h.tools.length === 0 && h.agents.length === 0
 
-  return isEmpty && view.tab !== 'agentes' && view.tab !== 'juegos' ? [line(dim(WAITING))] : TABS[view.tab](view)
+  const hasOwnWord = view.tab === 'agentes' || view.tab === 'juegos' || view.tab === 'teoria'
+
+  return isEmpty && !hasOwnWord ? [line(dim(WAITING))] : TABS[view.tab](view)
 }
 
 /**

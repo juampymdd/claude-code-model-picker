@@ -37,6 +37,7 @@ With the version dropdown open:
 - **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
 - **Animated stats pane** with charts of the session's cost, models, tools and pace, and the **agents, live**: what each one is doing, on which model and what it costs.
 - **15 games** in the pane (Pong, Tetris, Snake, Minesweeper, 2048… and two made of your session's data), under the [`▶ Jugar`](#6--jugar-play) tab.
+- **[Teoría](#7--teoría-theory) tab**: while it works, Claude notes the concepts and design decisions it applies, explained from scratch or as the trade-off alone.
 - **`/modelo` command** to do the same from the keyboard.
 - **Updates itself**: once a day it looks for a new version and installs it. It can be [turned off](#turning-it-off).
 
@@ -130,6 +131,7 @@ claude plugin list
 | `/modelo auto` | Goes back to the session's model |
 | `/modelo stats` | Opens or closes the [stats pane](#the-stats-pane) |
 | `/modelo juegos` | Hides or shows the pane's [games](#6--jugar-play) tab |
+| `/modelo teoria` | Turns the [theory notes](#7--teoría-theory) off or on; with `aprender` or `experto` it sets the level |
 
 Families: `fable`, `opus`, `sonnet`, `haiku`.
 
@@ -162,10 +164,10 @@ A pane with charts of the whole session. Open and close it with the **`▦ stats
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
- 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar
+ 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar   7: Teoría
 ```
 
-Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `6` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
+Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `7` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
 
 ### 1 · Costo (cost)
 
@@ -303,11 +305,49 @@ Good to know:
 
 - Records are kept between sessions. In Minesweeper the record rewards the shortest time; in Sokoban it counts the levels solved; the Game of Life and the race have none.
 - A terminal does not report key releases: each press moves one step (holding the key repeats). Asteroids and Breakout play better with the mouse.
-- While the game has the focus, the `1` to `6` tab keys may not answer: `Esc` first.
+- While the game has the focus, the `1` to `7` tab keys may not answer: `Esc` first.
 - Each game needs a minimum width (between 20 and 38 columns) and says so when the pane falls short.
 - The games run in the terminal and the desktop app.
 
 **Hiding the tab:** `/modelo juegos` removes it or puts it back for the session. To never see it, `/config` → **Juegos en el panel** (`model-picker.games`) → off.
+
+### 7 · Teoría (theory)
+
+While Claude works, it notes here **the theory behind what it is building**: each concept, pattern, algorithm or design decision it applies, explained at the moment it uses it. It is for learning by watching, without stopping the work to ask.
+
+```
+TEORÍA · 2 notas · nivel aprendiendo
+────────────────────────────────────────────────────────────────────
+◆ Debounce                                                       12s
+  src/hooks/useSearch.ts
+  Es esperar a que el usuario deje de escribir antes de disparar la
+  búsqueda. Evita una request por tecla. Lo elegí en vez de throttle
+  porque acá importa el texto final, no los intermedios.
+
+◆ Índice compuesto                                              2m10s
+  migrations/0008_meals.sql
+  Un índice sobre dos columnas juntas (user_id, fecha)…
+
+ apagar notas   nivel: solo decisiones   borrar
+```
+
+The newest note is on top. Each one has the concept, where it applies (when Claude said so), the explanation and how long ago it was noted. Notes do not show in the conversation and do not count in the Tools tab. Claude writes them in the language you write in.
+
+There are two levels (`nivel`):
+
+| Level | What Claude writes |
+| --- | --- |
+| `aprender` (learning, the default) | The concept from scratch, in 2 to 4 sentences: what it is, what problem it solves and why it was picked over the obvious alternative |
+| `experto` (expert) | Only the decision and its trade-off, in 1 or 2 sentences |
+
+The buttons at the bottom turn the notes off or on (`apagar notas` / `encender notas`), switch the level and clear the list (`borrar`). The command does the same: `/modelo teoria` (toggles), `/modelo teoria on`, `off`, `aprender` or `experto`. The level is kept between sessions. To start with them off: `/config` → **Notas de teoría** (`model-picker.theory`) → off.
+
+Good to know:
+
+- It works through a tool of the mod's own (`mcp__model-picker__teoria`) and a paragraph the mod adds to the system prompt asking Claude to use it. How many notes it writes depends on the model: it is a request, not a guarantee.
+- It has a cost: the paragraph adds about 150 input tokens per request (they stay cached) and each note is output tokens. With the notes off the paragraph is not sent.
+- Only the main loop takes notes; subagents do not get the request.
+- The last 100 notes are kept and the newest 30 shown. A `/clear` removes them.
 
 ### Motion
 
@@ -365,11 +405,13 @@ The mod registers these hooks:
 
 | Hook | What for |
 | --- | --- |
-| `session.start` | Registers the `/modelo` command |
+| `session.start` | Registers the `/modelo` command and the theory notes' tool |
 | `command.run` | Answers `/modelo` |
 | `turn.step` | Before each request of the main loop, sets the picked model; after it, tallies what the API reported |
 | `turn.start`, `turn.complete` | Open and close each turn in the stats pane's history |
-| `tool.call` | Counts and times each tool without changing the call |
+| `tool.call` | Counts and times each tool without changing the call; answers the theory notes' tool |
+| `tool.check` | Approves the notes' tool, which changes nothing, so it never asks for permission |
+| `prompt.compose` | With the notes on, adds to the system prompt the request to write them |
 | `agent.spawn` | Notes each agent that is spawned, with its type and description |
 | `session.end` | Resets the numbers on a `/clear` |
 | `ui.render` | Draws the band above the prompt and the stats pane |
@@ -533,6 +575,7 @@ hooks/
   sokoban.ts life.ts
   sessiongames.ts    Token Invaders and the agents' race
   pane.tsx           the tabs and the pane's assembly
+  theory.ts          the theory notes: the tool, the request and the list
   update.ts          the self-update
 types/
   index.d.ts         the contract of the state the mod keeps
@@ -546,6 +589,7 @@ tests/
   rules.test.ts      the rules of the other games
   arcade.test.tsx    the games running in the pane
   pane.test.tsx      the stats pane
+  theory.test.tsx    the theory notes
   update.test.ts     the self-update
 ```
 
