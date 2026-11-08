@@ -5,6 +5,8 @@
 import type { AgentStat, Best, Game, History, Level, Note, Tab, Turn } from '../types'
 import { cell, duration, hbar, pct, sparkline, stack, wrap } from './charts'
 import { activity, isDone, pace } from './history'
+import { limitSegs, sortLimits } from './limits'
+import type { Limit } from './limits'
 import { pickOfId } from './models'
 import { count, money } from './stats'
 import { LEVELS } from './theory'
@@ -57,8 +59,9 @@ export type View = {
   theory?: boolean
   level?: Level
   notes?: readonly Note[]
-  // From `$.session.usage()`: when the session started, how full its context is, Claude Code's own cost.
-  usage?: { startedAt?: number; percent?: number; usd?: number }
+  // From `$.session.usage()`: when the session started, how full its context is, Claude Code's own cost,
+  // and the account's rate-limit windows.
+  usage?: { startedAt?: number; percent?: number; usd?: number; limits?: readonly Limit[] }
 }
 
 const WAITING = 'Todavía no hay datos: llegan tras la próxima respuesta.'
@@ -104,6 +107,24 @@ export const headRow = (view: View): Row => {
   if (view.usage?.usd !== undefined) segs.push(dim(` · /cost ${money(view.usage.usd)}`))
 
   return { segs }
+}
+
+const LIMIT_METER = 8
+
+/**
+ * The account's rate-limit windows under the header (5 hours, the week,
+ * Fable's), each with how long until it resets while that fits; null without any.
+ */
+export const limitsRow = (view: View): { segs: Seg[] } | null => {
+  const limits = sortLimits(view.usage?.limits ?? [])
+  if (limits.length === 0) return null
+
+  const join = (withReset: boolean): Seg[] =>
+    limits.flatMap((limit, index) => [...(index === 0 ? [dim('límites ')] : [dim(' · ')]), ...limitSegs(limit, LIMIT_METER, withReset ? view.now : undefined)])
+  const width = (segs: Seg[]): number => segs.reduce((all, seg) => all + (seg.fx === 'meter' ? (seg.width ?? 0) : [...seg.text].length), 0)
+  const full = join(true)
+
+  return { segs: width(full) <= view.columns ? full : join(false) }
 }
 
 const costRows = (view: View): Row[] => {

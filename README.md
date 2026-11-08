@@ -51,7 +51,7 @@ Con el dropdown de versiones abierto:
 - **Dropdown de versiones con precio**: un clic en el chip activo lista todas las versiones de esa familia y su precio de lista.
 - **Arranca en tu modelo real**: al abrir una sesión marca el modelo que la sesión ya usa.
 - **Cambio instantáneo**: la elección se aplica a la request siguiente.
-- **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, effort, tokens y porcentaje de cache.
+- **Fila de datos**: modelo que respondió, costo estimado de la sesión y del turno, **límites de uso de tu cuenta** (5 horas, semanal y el de Fable si existe), effort, tokens y porcentaje de cache.
 - **Panel de estadísticas** animado, con gráficos de costo, modelos, herramientas y ritmo de la sesión, y los **agentes en vivo**: qué hace cada uno, con qué modelo y cuánto gasta.
 - **15 juegos** en el panel (Pong, Tetris, Snake, Buscaminas, 2048… y dos hechos con los datos de tu sesión), en la pestaña [`▶ Jugar`](#6--jugar).
 - **Pestaña [Teoría](#7--teoría)**: mientras trabaja, Claude anota los conceptos y decisiones de diseño que aplica, explicados desde cero o solo con el trade-off.
@@ -166,7 +166,7 @@ Familias válidas: `fable`, `opus`, `sonnet`, `haiku`.
 Debajo de los chips hay una fila con lo que la API informó. Antes de la primera respuesta de la sesión dice `costo, tokens y cache: tras la próxima respuesta`; después:
 
 ```
-respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
+respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · 5h ▰▰▱▱▱▱ 42% · semana ▰▱▱▱▱▱ 18% · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
 ```
 
 | Dato | Qué es |
@@ -174,11 +174,15 @@ respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k�
 | `respondió Opus 5.5` | El modelo que la API dice que respondió la última request. Sirve para comprobar que el cambio se aplicó |
 | `sesión ~$0.42` | Costo estimado de todas las requests de la sesión, subagentes incluidos |
 | `turno ~$0.031` | Costo estimado del turno actual (tu último mensaje y todas las llamadas que disparó) |
+| `5h ▰▰▱▱▱▱ 42%` | Cuánto usaste del límite de 5 horas de tu suscripción. Verde, ámbar desde 70 %, rojo desde 90 % |
+| `semana ▰▱▱▱▱▱ 18%` | Cuánto usaste del límite semanal. Si Claude Code informa una ventana propia de Fable, aparece como `fable`; cualquier otra ventana se muestra con el nombre que le da Claude Code |
 | `effort medium` | Nivel de razonamiento con el que salió la última request |
 | `48k→1.2k tok` | Tokens de la última request: prompt completo (cache incluida) → respuesta |
 | `cache ▰▰▰▰▰▰ 94%` | Qué parte de ese prompt salió de la cache, con su medidor: verde si es alta, ámbar bajo 70 %, rojo bajo 30 %. Baja a 0% justo después de cambiar de modelo |
 | `contexto ▰▰▱▱▱▱ 38%` | Cuán llena está la ventana de contexto: verde, ámbar desde 70 %, rojo desde 90 % |
 | `manual` | Hay un modelo elegido a mano, distinto al de la sesión |
+
+Los límites salen de lo que informa Claude Code (lo mismo que ve la status line) y solo aparecen con una suscripción, después de la primera respuesta. Al pasar el 90 % de una ventana sale un aviso (toast), una sola vez hasta que se renueve.
 
 Si la terminal es angosta, la fila deja primero los datos de la izquierda y descarta los últimos. Mientras el dropdown está abierto, la fila se oculta.
 
@@ -190,8 +194,11 @@ Un panel con gráficos de toda la sesión. Se abre y se cierra con el botón **`
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
+límites 5h ▰▰▰▱▱▱▱▱ 42% ↻ 2h 10m · semana ▰▱▱▱▱▱▱▱ 18% ↻ 3d 4h
  1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar   7: Teoría
 ```
+
+La segunda línea muestra los límites de tu cuenta y cuánto falta para que se renueve cada uno (`↻`); no aparece si no usás suscripción.
 
 Las pestañas se cambian con un clic o, con el panel enfocado (clic en el panel o `ctrl+x tab`), con las teclas `1` a `7`. Los gráficos están hechos con caracteres de bloque, sin librerías, así que se ven igual en la terminal y en la app de escritorio.
 
@@ -462,6 +469,7 @@ El cambio se hace **por request**: el mod reescribe el campo `model` de cada lla
 - **Los modelos y precios están escritos en el código.** Cuando sale un modelo nuevo hay que agregarlo (ver abajo).
 - **Cambiar de modelo a mitad de una conversación cuesta más en esa request**: la cache de la conversación es por modelo, así que el modelo nuevo relee todo el historial.
 - **En terminales angostas** la banda se compacta: con menos de 106 columnas oculta la nota de la derecha, con menos de 70 deja solo el glifo de los modelos no elegidos, y la fila de datos descarta sus últimos datos.
+- **El límite de Fable depende de Claude Code.** Se muestra solo si Claude Code informa una ventana propia de Fable; si no, no hay forma de calcularlo, porque el mod no ve el uso de tu cuenta, solo el de la sesión.
 - **La interfaz está en español.**
 
 ## Agregar o cambiar modelos

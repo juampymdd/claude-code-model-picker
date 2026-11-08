@@ -144,6 +144,8 @@ declare module 'claude-code' {
       theory: boolean
       level: Level
       notes: Note[]
+      // The rate-limit windows (by kind) already warned about at 90% or more.
+      limitAlerts: Record<string, true>
     }
   }
 }

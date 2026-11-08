@@ -4,6 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { GameData } from './arcade'
 import { GAMES } from './catalog'
 import { addStep, addTool, closeAgent, closeTurn, EMPTY, isDone, openAgent, openTurn, startTool, syncAgents } from './history'
+import { alertsFor } from './limits'
 import { FAMILIES, latest, pickOfId, pickOfName, pickOfText } from './models'
 import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
@@ -53,6 +54,9 @@ const theoryOn = atom({ plugin: 'model-picker', key: 'theory' } as const, true)
 const levelOf = atom({ plugin: 'model-picker', key: 'level' } as const, 'aprender')
 const notes = atom({ plugin: 'model-picker', key: 'notes' } as const, [])
 
+// The rate-limit windows already warned about at 90% or more.
+const alerted = atom({ plugin: 'model-picker', key: 'limitAlerts' } as const, {})
+
 // The key the notes' level is kept under between sessions.
 const LEVEL_KEY = 'theory.level'
 
@@ -86,7 +90,7 @@ const sessionUsage = async ($: EngineInterface) => {
   try {
     const usage = await $.session.usage()
 
-    return { startedAt: usage.startedAt, percent: usage.context.percent, usd: usage.cost?.usd }
+    return { startedAt: usage.startedAt, percent: usage.context.percent, usd: usage.cost?.usd, limits: usage.rateLimits }
   } catch {
     return undefined
   }
@@ -296,6 +300,24 @@ export const register: Register = (on, options) => {
   // A note is the agent's own to tell: it changes nothing, so it is never asked about.
   on('tool.check', { tool: 'mcp__model-picker__teoria' }, () => ({ decision: 'allow' as const })).catch(($, e, next) => next(e))
 
+  // Claude Code pushes the session's figures when they move: a rate-limit window
+  // redraws the band and the pane, and one past 90% is warned about once.
+  on('session.measure', async ($, e, next) => {
+    try {
+      if (e.changed.includes('rateLimits')) {
+        const now = await $.clock.now()
+        const { texts, alerted: kept } = alertsFor(e.rateLimits, await read($, alerted), now)
+        await update($, alerted, () => kept)
+        for (const text of texts) await $.ui.toast(text)
+        $.ui.invalidate('ui.render')
+      }
+    } catch {
+      // the figures still show at the next draw
+    }
+
+    return next(e)
+  })
+
   on('turn.start', async ($, e, next) => {
     try {
       const now = await $.clock.now()
@@ -503,6 +525,7 @@ export const register: Register = (on, options) => {
     const hasNames = columns >= NAME_COLUMNS
     const opened = FAMILIES.find(f => f.choice === shown)
     const seen = await read($, stats)
+    const measured = await sessionUsage($)
     // Before the session's first response there is nothing to report yet.
     const facts: LiveProps = {
       tab: 'band',
@@ -512,7 +535,7 @@ export const register: Register = (on, options) => {
           segs:
             seen === null
               ? [{ text: WAITING, dim: true }]
-              : statsSegs(seen, override !== undefined, columns - 2, (await sessionUsage($))?.percent),
+              : statsSegs(seen, override !== undefined, columns - 2, measured?.percent, measured?.limits),
         },
       ],
     }

@@ -5,7 +5,7 @@ import type { Game, Level, Tab } from '../types'
 import { gameOf, GAMES } from './catalog'
 import { paint } from './paint'
 import type { Hyper } from './paint'
-import { headRow, rowsFor } from './rows'
+import { headRow, limitsRow, rowsFor } from './rows'
 import type { LiveProps, View } from './rows'
 
 export const PANE = 'model-picker-stats'
@@ -40,11 +40,11 @@ export type Handlers = {
 export type Play = () => RenderNode | null | undefined
 
 /** The pane's props for its drawing: the header and the chosen tab's rows. */
-export const liveProps = (view: View): LiveProps => ({
-  tab: view.tab,
-  now: view.now,
-  rows: [headRow(view), ...rowsFor(view)],
-})
+export const liveProps = (view: View): LiveProps => {
+  const limits = limitsRow(view)
+
+  return { tab: view.tab, now: view.now, rows: [headRow(view), ...(limits === null ? [] : [limits]), ...rowsFor(view)] }
+}
 
 /**
  * The pane's tree: the tabs, then the header and the chosen tab. Given `live`
