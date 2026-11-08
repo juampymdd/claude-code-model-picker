@@ -12,7 +12,7 @@ import type { LiveProps, View } from './rows'
 export const PANE = 'model-picker-stats'
 
 export const TABS: readonly { tab: Tab; label: string; hotkey: string }[] = [
-  { tab: 'costo', label: 'Costo', hotkey: '1' },
+  { tab: 'costo', label: 'Tokens', hotkey: '1' },
   { tab: 'modelos', label: 'Modelos', hotkey: '2' },
   { tab: 'tools', label: 'Tools', hotkey: '3' },
   { tab: 'ritmo', label: 'Ritmo', hotkey: '4' },

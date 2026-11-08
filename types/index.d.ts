@@ -90,6 +90,8 @@ export type AgentStat = {
   steps: number
   cost: number
   costs: number[]
+  // The tokens (whole prompt and output) of its latest requests, for its sparkline; absent in a record kept before 0.7.0.
+  toks?: number[]
   // Whole prompt tokens (cache included) and output tokens.
   input: number
   output: number

@@ -1,7 +1,10 @@
 import { expect, test } from 'claude-code/testing'
 
 import { nameOfId, pickOfId, pickOfName } from '../hooks/models'
-import { costOf, count, money, priceLabel, statsLine, statsSegs, tally } from '../hooks/stats'
+import { costOf, count, statsLine, statsSegs, tally } from '../hooks/stats'
+
+// Costs are still worked out (for the record), only no longer shown; compared to a tenth of a cent.
+const money = (dollars: number): string => dollars.toFixed(3)
 import type { Usage } from '../hooks/stats'
 
 const usage = (model: string, over: Partial<Usage> = {}): Usage => ({
@@ -49,16 +52,11 @@ test('the tally keeps the latest main response, its turn and the whole session',
   expect(next).toMatchObject({ answeredBy: 'claude-haiku-4-5', turnCost: 1, sessionCost: 12 })
 })
 
-test('amounts and counts are short', () => {
-  expect(money(0.0291)).toBe('$0.029')
-  expect(money(0.1)).toBe('$0.10')
-  expect(money(12.345)).toBe('$12.35')
+test('counts are short', () => {
   expect(count(800)).toBe('800')
   expect(count(1234)).toBe('1.2k')
   expect(count(45_600)).toBe('46k')
   expect(count(1_200_000)).toBe('1.2M')
-  expect(priceLabel([4, 20])).toBe('$4/$20')
-  expect(priceLabel([0.1, 0.5])).toBe('$0.10/$0.50')
 })
 
 test('the stats row drops its last parts to fit, and is empty with nothing to show', () => {
@@ -70,8 +68,9 @@ test('the stats row drops its last parts to fit, and is empty with nothing to sh
   )
   const whole = statsLine(stats, true, 200)
 
-  expect(whole).toBe('respondió Opus 5.5 · sesión ~$0.020 · turno ~$0.020 · effort medium · 10k→500 tok · cache ▰▰▰▰▰▱ 80% · manual')
-  expect(statsLine(stats, true, 40)).toBe('respondió Opus 5.5 · sesión ~$0.020')
+  expect(whole).toBe('respondió Opus 5.5 · effort medium · 10k→500 tok · cache ▰▰▰▰▰▱ 80% · manual')
+  expect(whole).not.toMatch(/\$/)
+  expect(statsLine(stats, true, 40)).toBe('respondió Opus 5.5 · effort medium')
   expect(statsLine(stats, true, 5)).toBe('respondió Opus 5.5')
   expect(statsLine(null, false, 200)).toBe('')
   expect(statsLine(null, true, 200)).toBe('manual')
@@ -92,6 +91,6 @@ test('the stats row carries a meter for the cache and one for the context, and d
     ['context', 38, false],
   ])
   expect(statsLine(stats, false, 200, 38.4)).toMatch(/cache ▰▰▰▰▰▱ 80% · contexto ▰▰▱▱▱▱ 38%$/)
-  expect(statsSegs(stats, false, 60, 38.4).some(seg => seg.fx === 'meter')).toBe(false)
+  expect(statsSegs(stats, false, 40, 38.4).some(seg => seg.fx === 'meter')).toBe(false)
   expect(statsLine(null, false, 200, 50)).toBe('contexto ▰▰▰▱▱▱ 50%')
 })

@@ -409,16 +409,16 @@ test("the session's tools become invaders and its agents run a race", () => {
   expect(tagOf('x')).toBe('X?')
 
   const data: GameData = {
-    cost: 5,
+    tokens: 5_000_000,
     tools: [
       { name: 'Read', count: 3, errors: 0 },
       { name: 'Bash', count: 10, errors: 1 },
       { name: 'Edit', count: 4, errors: 2 },
     ],
     agents: [
-      { id: 'a', type: 'Explore', model: 'claude-haiku-5-5', steps: 15, cost: 0.02, state: 'live' },
-      { id: 'b', type: 'Plan', model: 'claude-opus-5-5', steps: 30, cost: 0.4, state: 'done' },
-      { id: 'c', type: 'general', model: '', steps: 2, cost: 0, state: 'failed' },
+      { id: 'a', type: 'Explore', model: 'claude-haiku-5-5', steps: 15, tokens: 150000, state: 'live' },
+      { id: 'b', type: 'Plan', model: 'claude-opus-5-5', steps: 30, tokens: 300000, state: 'done' },
+      { id: 'c', type: 'general', model: '', steps: 2, tokens: 20000, state: 'failed' },
     ],
   }
   const tags = tagsFor(data)
@@ -433,8 +433,8 @@ test("the session's tools become invaders and its agents run a race", () => {
   expect(tagsFor(NO_DATA)[0]).toEqual({ text: '??', color: 'inactive' })
 
   expect(hurry(0)).toBe(1)
-  expect(hurry(5)).toBe(1.5)
-  expect(hurry(500)).toBe(2)
+  expect(hurry(5_000_000)).toBe(1.5)
+  expect(hurry(500_000_000)).toBe(2)
   expect(text(tokens.draw(playing(tokens.create(50, 16, 1, data)), '#fff', data))).toMatch(/Ba Ed Re Ba/)
 
   const lanes = text(race.draw(race.create(60, 8, 1, data), '#fff', data))

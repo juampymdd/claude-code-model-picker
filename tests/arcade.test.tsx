@@ -185,7 +185,8 @@ test('a pane too narrow to play says so', async ($, on) => {
 
 test('the play tab is offered without asking for it', async ($, on) => {
   world(on)
-  const ui = await $.ui.mount({ ...pane(70), surface: 'terminal' })
+  // The pane opens 72 columns wide: every tab's name fits.
+  const ui = await $.ui.mount({ ...pane(72), surface: 'terminal' })
   await $.session.end({ reason: 'other', sessionId: 's', resume: { id: 's' } }).catch(() => undefined)
 
   await setGames($, ui, true)

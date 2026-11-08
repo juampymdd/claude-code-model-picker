@@ -8,7 +8,7 @@ import type { Invaders } from './invaders'
 import { pickOfId } from './models'
 import type { Seg } from './rows'
 import { drawInvaders, invadersHud } from './screens'
-import { money } from './stats'
+import { count } from './stats'
 
 /** A tool's name in two letters: `Bash` is `Ba`, an MCP tool goes by its own last name. */
 export const tagOf = (name: string): string => {
@@ -36,21 +36,21 @@ export const tagsFor = (data: GameData): { text: string; color: string }[] => {
   })
 }
 
-/** How much faster the invaders come for what the session has cost: twice as fast from ten dollars on. */
-export const hurry = (cost: number): number => 1 + clamp(cost / 10, 0, 1)
+/** How much faster the invaders come for the tokens the session used: twice as fast from ten million on. */
+export const hurry = (tokens: number): number => 1 + clamp(tokens / 10_000_000, 0, 1)
 
 export const tokens: GameDef<Invaders> = {
   id: 'tokens',
   label: 'Token Invaders',
-  glyph: '$',
-  hint: 'tus tools bajan, más rápido cuanto más gastaste · ←→ o mouse · espacio dispara',
+  glyph: '¤',
+  hint: 'tus tools bajan, más rápido cuantos más tokens usaste · ←→ o mouse · espacio dispara',
   minW: 38,
   maxW: 60,
   minRows: 14,
   maxRows: 20,
   ownNotice: true,
   create: (w, rows) => newInvaders(w, rows),
-  step: (s, dt, data) => stepInvaders(s, dt * hurry(data.cost)),
+  step: (s, dt, data) => stepInvaders(s, dt * hurry(data.tokens)),
   key: (s, key) => {
     if (key === ' ') return fireInvaders(s)
     if (key === 'left' || key === 'a') return nudgeInvaders(s, -4)
@@ -62,7 +62,7 @@ export const tokens: GameDef<Invaders> = {
   score: s => s.score,
   hud: (s, color, data) => [
     ...invadersHud(s, color),
-    { text: `   sesión ~${money(data.cost)} · ritmo ×${hurry(data.cost).toFixed(1)}`, dim: true },
+    { text: `   sesión ${count(data.tokens)} tok · ritmo ×${hurry(data.tokens).toFixed(1)}`, dim: true },
   ],
   draw: (s, color, data) => drawInvaders(s, color, tagsFor(data)),
 }
@@ -101,7 +101,7 @@ export const race: GameDef<Race> = {
   draw: (s, _, data) => {
     const agents = [...data.agents].sort((a, b) => Number(b.state === 'live') - Number(a.state === 'live') || b.steps - a.steps).slice(0, s.rows)
     const goal = Math.max(GOAL, ...agents.map(agent => agent.steps))
-    const track = Math.max(8, s.w - 10 - 9)
+    const track = Math.max(8, s.w - 10 - 10)
     const lanes = agents.map((agent): Seg[] => {
       const known = pickOfId(agent.model)
       const at = clamp(Math.round((agent.steps / goal) * (track - 1)), 0, track - 1)
@@ -116,7 +116,7 @@ export const race: GameDef<Race> = {
         { text: mark, color, bold: true },
         { text: '·'.repeat(track - 1 - at), color: 'subtle', dim: true },
         { text: '⚑', color: 'subtle' },
-        { text: cell(money(agent.cost), 8, 'right'), dim: agent.state !== 'live' },
+        { text: cell(`${count(agent.tokens)} tok`, 9, 'right'), dim: agent.state !== 'live' },
       ]
     })
 

@@ -43,20 +43,23 @@ test('the time to a reset reads in days, hours or minutes', () => {
 test('a window is its name, a meter and the percent, and the reset when asked', () => {
   const segs = limitSegs(FIVE, 6, NOW)
 
-  expect(segs.map(seg => seg.text).join('')).toBe('5h  42% ↻ 2h 10m')
+  // The 5-hour window is named by the time left to its reset; without a date, `5h`.
+  expect(segs.map(seg => seg.text).join('')).toBe('↻ 2h 10m  42%')
+  expect(limitSegs(WEEK, 6, NOW).map(seg => seg.text).join('')).toBe('semana  18% ↻ 3d 4h')
   expect(segs.find(seg => seg.fx === 'meter')).toMatchObject({ key: 'limit:five_hour', value: 42, width: 6 })
-  expect(limitSegs(FIVE, 6).some(seg => seg.text.includes('↻'))).toBe(false)
+  expect(limitSegs(FIVE, 6).map(seg => seg.text).join('')).toBe('5h  42%')
   // Past 100 (an exceeded spend limit) the meter stays full and the percent says how far.
   const over = limitSegs({ kind: 'spend_limit', percentUsed: 130 }, 6)
   expect(over.find(seg => seg.fx === 'meter')?.value).toBe(100)
   expect(over.at(-1)?.text).toBe(' 130%')
 })
 
-test('the band shows the windows after the costs, and drops them when narrow', () => {
+test('the band shows the windows after who answered, the 5-hour one by its time left, and drops them when narrow', () => {
   const stats = { answeredBy: 'claude-opus-5-5', effort: '', turnId: 't', input: 0, output: 0, cacheRead: 0, turnCost: 0, sessionCost: 0.02 }
 
-  expect(statsLine(stats, false, 200, undefined, [WEEK, FIVE])).toBe('respondió Opus 5.5 · sesión ~$0.020 · 5h ▰▰▰▱▱▱ 42% · semana ▰▱▱▱▱▱ 18% · 0→0 tok')
-  expect(statsLine(stats, false, 40, undefined, [FIVE])).toBe('respondió Opus 5.5 · sesión ~$0.020')
+  expect(statsLine(stats, false, 200, undefined, [WEEK, FIVE], NOW)).toBe('respondió Opus 5.5 · ↻ 2h 10m ▰▰▰▱▱▱ 42% · semana ▰▱▱▱▱▱ 18% · 0→0 tok')
+  expect(statsLine(stats, false, 200, undefined, [FIVE])).toBe('respondió Opus 5.5 · 5h ▰▰▰▱▱▱ 42% · 0→0 tok')
+  expect(statsLine(stats, false, 20, undefined, [FIVE], NOW)).toBe('respondió Opus 5.5')
   expect(statsLine(null, false, 200, undefined, [FABLE])).toBe('fable ▰▰▰▰▱▱ 71%')
   expect(statsLine(stats, false, 200, undefined, [])).not.toMatch(/5h|semana/)
 })
@@ -73,7 +76,7 @@ const view = (limits: readonly Limit[] | undefined, columns: number): View => ({
 test('the pane lists the windows under its header, with resets while they fit', () => {
   const text = (columns: number) => limitsRow(view([FIVE, WEEK, FABLE], columns))?.segs.map(seg => seg.text).join('')
 
-  expect(text(200)).toBe('límites 5h  42% ↻ 2h 10m · semana  18% ↻ 3d 4h · fable  71%')
+  expect(text(200)).toBe('límites ↻ 2h 10m  42% · semana  18% ↻ 3d 4h · fable  71%')
   expect(text(60)).toBe('límites 5h  42% · semana  18% · fable  71%')
   expect(limitsRow(view([], 200))).toBeNull()
   expect(limitsRow(view(undefined, 200))).toBeNull()
@@ -121,7 +124,7 @@ test('the pane shows the windows, and a window past 90% raises one toast', async
   const { toasts, set } = world(on)
   const ui = await $.ui.mount(pane)
 
-  expect(await ui.find({ type: 'Text', text: /límites 5h/, in: 'live' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /límites ↻ /, in: 'live' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /semana/, in: 'live' })).toBeDefined()
 
   const full: Limit[] = [{ kind: 'five_hour', percentUsed: 93 }, WEEK]

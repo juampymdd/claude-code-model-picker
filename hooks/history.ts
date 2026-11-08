@@ -244,6 +244,7 @@ export const addStep = (
     model: usage === null ? agent.model : keyOf(usage.model),
     cost: agent.cost + cost,
     costs: [...agent.costs, cost].slice(-COSTS_KEPT),
+    toks: [...(agent.toks ?? []), prompt + (usage?.output_tokens ?? 0)].slice(-COSTS_KEPT),
     input: agent.input + prompt,
     output: agent.output + (usage?.output_tokens ?? 0),
   }))

@@ -10,12 +10,12 @@ export type Pointer = { type: 'down' | 'move' | 'up'; x: number; y: number; butt
 
 // What the mod knows of the session, for the games made of it.
 export type GameData = {
-  cost: number
+  tokens: number
   tools: { name: string; count: number; errors: number }[]
-  agents: { id: string; type: string; model: string; steps: number; cost: number; state: 'live' | 'done' | 'failed' }[]
+  agents: { id: string; type: string; model: string; steps: number; tokens: number; state: 'live' | 'done' | 'failed' }[]
 }
 
-export const NO_DATA: GameData = { cost: 0, tools: [], agents: [] }
+export const NO_DATA: GameData = { tokens: 0, tools: [], agents: [] }
 
 export type Playable = { phase: Phase }
 

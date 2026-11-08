@@ -52,17 +52,19 @@ export const resetsIn = (resetsAt: string | undefined, now: number): string | un
 
 /**
  * One window as runs of text: its name, a meter of how much is used and the
- * percent; with `now`, how long until it resets too.
+ * percent. With `now` it also says how long until it resets; the 5-hour window
+ * is then named by that time alone (`↻ 2h 10m`), and keeps `5h` without a date.
  */
 export const limitSegs = (limit: Limit, width: number, now?: number): Seg[] => {
   const used = Math.round(limit.percentUsed)
+  const left = now === undefined ? undefined : resetsIn(limit.resetsAt, now)
+  const isNamedByTime = limit.kind === 'five_hour' && left !== undefined
   const segs: Seg[] = [
-    { text: `${labelOf(limit.kind)} `, dim: true },
+    { text: `${isNamedByTime ? `↻ ${left}` : labelOf(limit.kind)} `, dim: true },
     { text: '', fx: 'meter', key: `limit:${limit.kind}`, value: Math.min(100, used), width },
     { text: ` ${used}%`, dim: true },
   ]
-  const left = now === undefined ? undefined : resetsIn(limit.resetsAt, now)
-  if (left !== undefined) segs.push({ text: ` ↻ ${left}`, dim: true })
+  if (left !== undefined && !isNamedByTime) segs.push({ text: ` ↻ ${left}`, dim: true })
 
   return segs
 }

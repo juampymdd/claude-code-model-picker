@@ -2,40 +2,40 @@
 
 [![test](https://github.com/juampymdd/claude-code-model-picker/actions/workflows/test.yml/badge.svg)](https://github.com/juampymdd/claude-code-model-picker/actions/workflows/test.yml) [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**Pick the Claude model, and its version, from a band above the Claude Code prompt.** One click and the next request goes to another model: no `/model`, no dialogs, your default model untouched. Below it, what the API reported: which model answered, what it cost, tokens and cache.
+**Pick the Claude model, and its version, from a band above the Claude Code prompt.** One click and the next request goes to another model: no `/model`, no dialogs, your default model untouched. Below it, what the API reported: which model answered, tokens, cache and your account's usage limits.
 
 🇪🇸 [Leer en español](README.md)
 
 > The mod's interface is in Spanish (`MODELO`, `respondió`, `sesión`, `turno`, the `/modelo` command). This page translates each label.
 
-![model-picker's band: a click switches the model, and the active chip lists its versions with prices](docs/demo.gif)
+![model-picker's band: a click switches the model, and the active chip lists its versions](docs/demo.gif)
 
 ▶ [Watch the full video (30 s, in Spanish)](https://github.com/juampymdd/claude-code-model-picker/releases/download/v0.4.0/model-picker.mp4)
 
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5    razonamiento profundo
-  respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38%
+  respondió Opus 5.5 · ↻ 2h 10m ▰▰▱▱▱▱ 42% · semana ▰▱▱▱▱▱ 18% · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38%
 ```
 
 With the version dropdown open:
 
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▴ ▌  ▲ Sonnet 5.5   ● Haiku 5.5
-                          ● Opus 5.5 $4/$20 por MTok
-                          ○ Opus 5 $5/$25 por MTok
-                          ○ Opus 4.8 $5/$25 por MTok
-                          ○ Opus 4.7 $5/$25 por MTok
-                          ○ Opus 4.6 $5/$25 por MTok
+                          ● Opus 5.5
+                          ○ Opus 5
+                          ○ Opus 4.8
+                          ○ Opus 4.7
+                          ○ Opus 4.6
 ```
 
 ## What it does
 
 - **One chip per family** (Fable, Opus, Sonnet, Haiku), each in its own color. The active one is filled.
-- **Version dropdown with prices**: a click on the active chip lists every version of that family with its list price.
+- **Version dropdown**: a click on the active chip lists every version of that family.
 - **Starts on your real model**: a new session highlights the model the session already runs.
 - **Instant switch**: the choice applies to the next request.
-- **Stats row**: the model that answered, estimated session and turn cost, **your account's usage limits** (5-hour, weekly and Fable's when there is one), effort, tokens and cache share.
-- **Animated stats pane** with charts of the session's cost, models, tools and pace, and the **agents, live**: what each one is doing, on which model and what it costs.
+- **Stats row**: the model that answered, **your account's usage limits** (5-hour, labeled by the time left to its reset; weekly; and Fable's when there is one), effort, tokens and cache share.
+- **Animated stats pane** with charts of the session's tokens, models, tools and pace, and the **agents, live**: what each one is doing, on which model and how many tokens it uses.
 - **15 games** in the pane (Pong, Tetris, Snake, Minesweeper, 2048… and two made of your session's data), under the [`▶ Jugar`](#6--jugar-play) tab.
 - **[Teoría](#7--teoría-theory) tab**: while it works, Claude notes the concepts and design decisions it applies, explained from scratch or as the trade-off alone.
 - **`/modelo` command** to do the same from the keyboard.
@@ -116,7 +116,7 @@ claude plugin list
 | Action | Result |
 | --- | --- |
 | Click another family's chip | Switches to that family's newest version |
-| Click the active chip (`▾`) | Opens its versions, with prices, under the chip |
+| Click the active chip (`▾`) | Opens its versions under the chip |
 | Click a version in the list | Switches to it and closes the list (`●` marks the current one) |
 | Click the active chip again (`▴`) | Closes the list, changing nothing |
 | Pick the model the session already runs | Drops the choice and follows the session again |
@@ -137,18 +137,16 @@ Families: `fable`, `opus`, `sonnet`, `haiku`.
 
 ## The stats row
 
-Under the chips. Before the session's first response it reads `costo, tokens y cache: tras la próxima respuesta` ("cost, tokens and cache: after the next response"); then:
+Under the chips. Before the session's first response it reads `tokens y cache: tras la próxima respuesta` ("tokens and cache: after the next response"); then:
 
 ```
-respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · 5h ▰▰▱▱▱▱ 42% · semana ▰▱▱▱▱▱ 18% · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
+respondió Opus 5.5 · ↻ 2h 10m ▰▰▱▱▱▱ 42% · semana ▰▱▱▱▱▱ 18% · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
 ```
 
 | Label | Meaning |
 | --- | --- |
 | `respondió Opus 5.5` | "answered by": the model the API says answered the latest request. Use it to confirm a switch took effect |
-| `sesión ~$0.42` | Estimated cost of every request of the session, subagents included |
-| `turno ~$0.031` | Estimated cost of the current turn (your last message and every call it triggered) |
-| `5h ▰▰▱▱▱▱ 42%` | How much of your subscription's 5-hour limit you used. Green, amber from 70%, red from 90% |
+| `↻ 2h 10m ▰▰▱▱▱▱ 42%` | How much of your subscription's 5-hour limit you used, named by the time left until it resets (`5h` when Claude Code gives no reset time). Green, amber from 70%, red from 90% |
 | `semana ▰▱▱▱▱▱ 18%` | "week": how much of the weekly limit you used. If Claude Code reports a window of Fable's own it shows as `fable`; any other window shows under the name Claude Code gives it |
 | `effort medium` | The reasoning effort the latest request asked for |
 | `48k→1.2k tok` | Tokens of the latest request: whole prompt (cache included) → response |
@@ -160,13 +158,11 @@ The limits come from what Claude Code reports (what the status line sees too) an
 
 In a narrow terminal the row keeps its leftmost parts and drops the last ones. It is hidden while the dropdown is open.
 
-**Costs are estimates**: the tokens the API reported times the list price. On a subscription, read them as a measure of usage, not as your bill. See [Limitations](#limitations).
-
 While Claude works, the row starts with **what it is doing** instead of `respondió …`: the tool in progress with its arguments and how long it has run, or `pensando…` (thinking) between tools; and, when agents are at work, the newest one with its own. Once the turn ends it says who answered again.
 
 ```
 ▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5   ▦ stats ●1
-  ⠹ Bash npm test 12s · ● Explore ▸ Grep "FAMILIES" hooks · sesión ~$0.42 · turno ~$0.031
+  ⠹ Bash npm test 12s · ● Explore ▸ Grep "FAMILIES" hooks · ↻ 2h 10m ▰▰▱▱▱▱ 42% · semana ▰▱▱▱▱▱ 18%
 ```
 
 ## The stats pane
@@ -174,44 +170,44 @@ While Claude works, the row starts with **what it is doing** instead of `respond
 A pane with charts of the whole session. Open and close it with the **`▦ stats`** button at the end of the band, or with `/modelo stats`. On wide terminals (110 columns or more, fullscreen) it docks on the right; otherwise it shows above the prompt. `Esc` closes it too when it has the focus.
 
 ```
-sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
-límites 5h ▰▰▰▱▱▱▱▱ 42% ↻ 2h 10m · semana ▰▱▱▱▱▱▱▱ 18% ↻ 3d 4h
- 1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar   7: Teoría
+sesión 1h12m · 2.0M tok · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
+límites ↻ 2h 10m ▰▰▰▱▱▱▱▱ 42% · semana ▰▱▱▱▱▱▱▱ 18% ↻ 3d 4h
+ 1: Tokens   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar   7: Teoría
 ```
 
-The second line (`límites` = limits) shows your account's limits and how long until each resets (`↻`); it is absent off a subscription.
+The second line (`límites` = limits) shows your account's limits and how long until each resets (`↻`); the 5-hour one is named by that time alone. It is absent off a subscription.
 
 Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `7` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
 
-### 1 · Costo (cost)
+### 1 · Tokens
 
-What each turn cost: each message of yours with every request it triggered.
+The tokens of each turn: each message of yours with every request it triggered.
 
 ```
-COSTO POR TURNO · últimos 28 de 31 · máx $0.21
+TOKENS POR TURNO · últimos 28 de 31 · máx 49k
       █
   ▂   █    ▅
 ▁▃█▂▁▂█▃▁▁▂█▂▁▁▃▂▁▁▂▃▁▂▅▂▁▂▃
-   #  costo   ▒ entrada █ salida    tok          cache
-  31  $0.084  ▒▒▒▒▒▒██████████      48k→1.2k     94%
-  30  $0.012  ▒▒█                   12k→300      88%
-total ~$0.42 · 1.9M→41k tok · cache 91% · subagentes $0.05
+   #  tokens   ▒ entrada █ salida    ent→sal      cache
+  31  49k      ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒█      48k→1.2k     94%
+  30  12k      ▒▒▒▒                  12k→300      88%
+total 1.9M→41k tok · cache 91% · subagentes 420k tok
 ```
 
-- On top, a column chart of the latest turns' cost.
-- The table lists the 50 most recent turns, newest first. The bar is the turn's cost: `▒` what the prompt cost (`entrada` = input) and `█` what the response cost (`salida` = output), in the color of the model that answered.
-- `tok` is the turn's tokens (whole prompt, cache included → response) and `cache` the share of the prompt served from cache.
-- In narrow panes the table drops `tok` first and then `cache`.
+- On top, a column chart of the latest turns' tokens.
+- The table lists the 50 most recent turns, newest first. `tokens` is the turn's total, and the bar splits it: `▒` the prompt's tokens (`entrada` = input) and `█` the response's (`salida` = output), in the color of the model that answered.
+- `ent→sal` is the turn's tokens (whole prompt, cache included → response) and `cache` the share of the prompt served from cache.
+- In narrow panes the table drops `ent→sal` first and then `cache`.
 
 ### 2 · Modelos (models)
 
-How the session's cost splits between models, subagents included.
+How the session's tokens (input and output) split between models, subagents included.
 
 ```
 USO POR MODELO
-◆ Opus 5.5    ████████████▌   $0.31   74%  1.4M→30k  22 req
-● Haiku 5.5   ██▏             $0.05   12%  410k→9k   14 req
-subagentes: $0.05 (12% del total)
+◆ Opus 5.5    ████████████▌   1.4M   77%  1.4M→30k  22 req
+● Haiku 5.5   ██▏             419k   23%  410k→9k   14 req
+subagentes: 420k tok (23% del total)
 ```
 
 ### 3 · Tools
@@ -245,20 +241,20 @@ actividad  ··▁▃█▅···▂▃▁··▂▅   16 tramos de 4m30s
 
 ### 5 · Agentes (agents)
 
-The session's subagents, live. Claude Code already shows which agents are running; this tab adds what it does not: what each one costs, on which model, which tools it used, which one it is in now and how long it has been going.
+The session's subagents, live. Claude Code already shows which agents are running; this tab adds what it does not: how many tokens each one uses, on which model, which tools it used, which one it is in now and how long it has been going.
 
 ```
-AGENTES  ● 2 corriendo  ✕ 1 fallaron  $1.04
+AGENTES  ● 2 corriendo  ✕ 1 fallaron  420k tok
 ────────────────────────────────────────────────────────────────────────
-● Explore   buscar usos de FAMILIES                        1m12s  $0.058
+● Explore   buscar usos de FAMILIES                        1m12s     96k
   ● Haiku 5.5  12 req  Grep ×3 Read ×2  ▸ ⠹ Grep 4s          ▁▂▃▅▇█
-● Plan      diseñar pestaña de agentes                     3m02s   $0.98
+● Plan      diseñar pestaña de agentes                     3m02s    318k
   ◆ Opus 5.5  8 req  Read ×6            ▸ pensando..         ▁▁▂▄▆█
-✕ general   correr los tests                                  3s  $0.000 error
+✕ general   correr los tests                                  3s      6k error
   ◆ Opus 5.5  1 req  Bash ×1 ✕1
 ```
 
-Each agent takes two rows. On top: state, type, description, time and cost. Below: model, requests, most used tools, what it is doing now (`▸`) and a chart of its latest requests' cost.
+Each agent takes two rows. On top: state, type, description, time and tokens. Below: model, requests, most used tools, what it is doing now (`▸`) and a chart of its latest requests' tokens.
 
 | State | Glyph | Color |
 | --- | --- | --- |
@@ -269,7 +265,7 @@ Each agent takes two rows. On top: state, type, description, time and cost. Belo
 
 - The state colors are Claude Code's theme colors, so they follow your light or dark theme. The model takes its family's color, like the chips in the band.
 - `▸` shows the tool in progress with its time, or `pensando` ("thinking") while the agent waits on the model. A tool's time turns amber after 10 seconds (usually a pending permission prompt), the agent's after 5 minutes.
-- A tool with failures carries `✕` and their count in red. A cost above $1 turns red.
+- A tool with failures carries `✕` and their count in red.
 - An agent spawned by another agent is listed under it, with `└`.
 - Running ones come first (newest on top), then the latest 10 finished; **`ocultar terminados`** ("hide finished") drops them from the list.
 - While agents are at work, a `●` with their count beats beside the band's `▦ stats` button, so you know without opening the pane.
@@ -279,7 +275,7 @@ Each agent takes two rows. On top: state, type, description, time and cost. Belo
 Under the list, **`ver:`** (see) has one button per agent. A click opens its log, step by step:
 
 ```
-● Explore   buscar usos de FAMILIES                        1m12s  $0.058
+● Explore   buscar usos de FAMILIES                        1m12s     96k
   ● Haiku 5.5  12 req  Grep ×3 Read ×2  ▸ ⠹ Read hooks/models.ts 2s
 ────────────────────────────────────────────────────────────────────────
 +0ms   ✎ Voy a buscar dónde se define FAMILIES y quién la usa.
@@ -330,13 +326,13 @@ Keys every game shares:
 | ◇ **Asteroids** | A field with no edges, rocks that split in two | `←` `→` turn · `↑` thrusts · `space` fires | points at the pointer · click fires · right thrusts |
 | ▣ **Sokoban** | Six levels: push every box onto its goal | arrows · `u` undoes · `n`/`b` change level | click beside the player |
 | ░ **Juego de la vida** (Game of Life) | Not won: drawn on and watched | `space` pauses · `c` clears · `g` glider · `1`–`5` speed | draws (right erases) |
-| $ **Token Invaders** | Invaders with **your tools** as the invaders | as Invaders | as Invaders |
+| ¤ **Token Invaders** | Invaders with **your tools** as the invaders | as Invaders | as Invaders |
 | ⚑ **Carrera de agentes** (agents' race) | The session's subagents on a track | not played | — |
 
 Two games use your session's data:
 
-- **Token Invaders**: each invader is a tool Claude used (`Ba` Bash, `Ed` Edit, `Re` Read…), the most used first. Green if it never failed, amber if it ever did, red past one failure in five. They come down faster the more the session cost: twice as fast from $10 on.
-- **Carrera de agentes**: a lane per subagent, moving one cell per request, with its cost at the end. Those still working take their model's color and a beating `▶`; those that finished show `✔` or `✕`.
+- **Token Invaders**: each invader is a tool Claude used (`Ba` Bash, `Ed` Edit, `Re` Read…), the most used first. Green if it never failed, amber if it ever did, red past one failure in five. They come down faster the more tokens the session used: twice as fast from 10M tokens on. The HUD shows them: `sesión 3.4M tok · ritmo ×1.3`.
+- **Carrera de agentes**: a lane per subagent, moving one cell per request, with its tokens at the end. Those still working take their model's color and a beating `▶`; those that finished show `✔` or `✕`.
 
 Good to know:
 
@@ -382,7 +378,7 @@ The buttons at the bottom turn the notes off or on (`apagar notas` / `encender n
 Good to know:
 
 - It works through a tool of the mod's own (`mcp__model-picker__teoria`) and a paragraph the mod adds to the system prompt asking Claude to use it. How many notes it writes depends on the model: it is a request, not a guarantee.
-- It has a cost: the paragraph adds about 150 input tokens per request (they stay cached) and each note is output tokens. With the notes off the paragraph is not sent.
+- It costs tokens: the paragraph adds about 150 input tokens per request (they stay cached) and each note is output tokens. With the notes off the paragraph is not sent.
 - Only the main loop takes notes; subagents do not get the request.
 - The last 100 notes are kept and the newest 30 shown. A `/clear` removes them.
 
@@ -396,7 +392,7 @@ In the terminal and the desktop app the pane moves; on other surfaces it is draw
 | An active agent's state | The glyph beats |
 | Tool in progress / `pensando` | A spinner and advancing dots |
 | The Models and Tools bars, the context meter | Grow to their value when the tab opens and when new data arrives |
-| Cost columns | Rise from zero when the tab opens |
+| Token columns | Rise from zero when the tab opens |
 | A new agent | Slides in from the right |
 | An agent that ends | Flashes for a moment, then dims |
 | The newest stretch of `actividad` | Beats while a turn is running |
@@ -407,34 +403,22 @@ The context meter (`▰▰▰▱▱▱▱▱ 38%`) goes from green to amber at 7
 ### Good to know
 
 - The pane counts what the mod has seen since it loaded: it knows nothing of what happened before. A `/clear` resets it.
-- Costs are list-price estimates (see [Limitations](#limitations)). When Claude Code reports a cost of its own, the header shows it beside it as `/cost`.
 - A turn's duration and a tool's time are wall-clock: they include waiting on permissions.
-- A subagent still running after your turn ends adds its cost to whichever turn is open then. The per-model and session totals are exact regardless.
 - An agent shows up when the mod sees it: at its spawn, or at its first request or tool. Those that ended before the mod loaded are not there.
 - Each agent's state is brought from Claude Code's own list every 2 seconds while any is at work. A workflow's agent is not in that list: it is shown all the same, typed `agente` and with no description.
 - `pensando` and the amber of a slow tool are the mod's own deductions (no tool in progress; over 10 seconds), not states Claude Code reports.
 - The latest 200 turns, up to 40 tool names (the rest count as `otros`, "others") and up to 100 agents are kept; the totals always include everything.
 
-## Models and prices
+## Models
 
-Anthropic API list prices in US dollars per million tokens (MTok), as of October 6, 2026.
+| Family | Versions |
+| --- | --- |
+| ✦ Fable | 5.1, 5 |
+| ◆ Opus | 5.5, 5, 4.8, 4.7, 4.6 |
+| ▲ Sonnet | 5.5, 5, 4.6 |
+| ● Haiku | 5.5, 4.5 |
 
-| Model | Input | Output |
-| --- | --- | --- |
-| ✦ Fable 5.1 | $10 | $50 |
-| ✦ Fable 5 | $10 | $50 |
-| ◆ Opus 5.5 | $4 | $20 |
-| ◆ Opus 5 | $5 | $25 |
-| ◆ Opus 4.8 | $5 | $25 |
-| ◆ Opus 4.7 | $5 | $25 |
-| ◆ Opus 4.6 | $5 | $25 |
-| ▲ Sonnet 5.5 | $2 | $10 |
-| ▲ Sonnet 5 | $2 | $10 |
-| ▲ Sonnet 4.6 | $3 | $15 |
-| ● Haiku 5.5 | $0.10 | $0.50 |
-| ● Haiku 4.5 | $1 | $5 |
-
-Your account needs access to the model you pick. Prices change: the current ones are on [Anthropic's pricing page](https://www.anthropic.com/pricing).
+Your account needs access to the model you pick.
 
 ## How it works
 
@@ -464,14 +448,10 @@ The switch is **per request**: the mod rewrites the `model` field of each call t
 
 - **`/model` does not reflect the choice.** The built-in command keeps showing the session's model; the band and its `respondió …` are the source of truth.
 - **The choice lasts the session.** Each new session starts on the session's model.
-- **Main loop only.** Subagents keep their own model (their cost is still added to the session's).
-- **Cost is an estimate.**
-  - It uses list prices written in the code; it knows nothing of discounts, subscriptions or price changes.
-  - Cache reads are priced at the model's published rate or, where there is none, at 10% of the input price; cache writes at 125%.
-  - Haiku 5.5 is always priced at its base rate, although prompts over 100K tokens are billed higher.
-  - It counts only the requests that went through the mod since it loaded, and a response from a model missing from the list adds $0.
-- **Models and prices are written in the code.** A new model has to be added by hand (see below).
-- **Switching models mid-conversation makes that request cost more**: the conversation's cache is per model, so the new model reads the whole history again.
+- **Main loop only.** Subagents keep their own model (their tokens are still added to the session's).
+- **It counts only what it saw.** The tokens are those of the requests that went through the mod since it loaded.
+- **Models are written in the code.** A new model has to be added by hand (see below).
+- **Switching models mid-conversation makes that request heavier**: the conversation's cache is per model, so the new model reads the whole history again, uncached.
 - **In narrow terminals** the band compacts: under 106 columns it hides the note on the right, under 70 it leaves only the glyph of the unpicked models, and the stats row drops its last parts.
 - **Fable's limit depends on Claude Code.** It shows only if Claude Code reports a window of Fable's own; otherwise there is no way to work it out, as the mod sees the session's usage, not your account's.
 - **The interface is in Spanish.**
@@ -495,7 +475,7 @@ Everything is in the `FAMILIES` list in [`hooks/models.ts`](hooks/models.ts). Ea
 ```
 
 - `version` is what is shown; `model` is the exact API id.
-- `price` is `[input, output]` in dollars per million tokens; the optional `cacheRead` is the price of a cache read.
+- `price` is `[input, output]` in dollars per million tokens, and the optional `cacheRead` the price of a cache read. They are used internally and not shown anywhere.
 - The first version listed is the one a click on the family picks.
 - To add a family, add another block with a new lowercase `choice`: that is the name `/modelo` takes.
 
@@ -567,9 +547,6 @@ The switch did not take effect. Confirm your account has access to that model an
 **The stats row is missing.**
 It hides while the dropdown is open. Before the session's first response it only shows a notice.
 
-**The cost does not match my bill.**
-It is an estimate at list price. See [Limitations](#limitations).
-
 **The colors look off.**
 They are hex colors and depend on your terminal's color support. Change them in `FAMILIES`.
 
@@ -596,8 +573,8 @@ Layout:
 hooks/
   hooks.json         names the hooks module
   register.tsx       the hooks and the band's drawing
-  models.ts          families, versions, ids and prices
-  stats.ts           cost, tokens and the stats row
+  models.ts          families, versions and ids
+  stats.ts           tokens and the stats row
   charts.ts          charts made of block characters
   history.ts         the history of turns, models and tools
   rows.ts            each tab of the pane as rows of text
@@ -621,7 +598,7 @@ types/
   index.d.ts         the contract of the state the mod keeps
 tests/
   picker.test.tsx    the band, the dropdown and the command
-  stats.test.ts      costs and formatting
+  stats.test.ts      tokens and formatting
   charts.test.ts     the charts
   history.test.ts    the history
   motion.test.ts     the animation engine and the agents list

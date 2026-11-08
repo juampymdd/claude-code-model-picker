@@ -2,13 +2,20 @@
 
 Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones, [SemVer](https://semver.org/lang/es/).
 
-## [Sin publicar]
+## [0.7.0] - 2026-11-08
 
 ### Agregado
 
 - Detalle de cada agente en la pestaña **Agentes**: un clic en `ver:` abre su registro con lo que escribe en vivo, cada herramienta con sus argumentos y su tiempo, su razonamiento (opcional, con `ver razonamiento`) y la respuesta final completa.
 - La fila de datos de la banda arranca, mientras Claude trabaja, con lo que está haciendo: la herramienta en curso con sus argumentos y su tiempo, o `pensando…`, y el agente más nuevo con la suya. Al terminar vuelve a `respondió …`.
 - En la lista de agentes, la herramienta en curso muestra sus argumentos.
+
+### Cambiado
+
+- **Sin dinero en ningún lado**: todo se mide en tokens. La banda ya no muestra el costo de la sesión ni del turno, el dropdown de versiones ya no muestra precios y el encabezado del panel muestra los tokens de la sesión en vez del costo y de `/cost`.
+- La pestaña **Costo** pasa a llamarse **Tokens**: el gráfico y la tabla muestran los tokens de cada turno (entrada y salida). Modelos y Agentes se reparten por tokens, y el gráfico de cada agente muestra los tokens de sus últimas requests.
+- Token Invaders se acelera con los tokens de la sesión (al doble desde 10M) y la Carrera de agentes muestra los tokens de cada uno.
+- El límite de 5 horas se nombra por lo que falta para que se renueve (`↻ 2h 10m`) en vez de `5h`.
 
 ## [0.6.0] - 2026-11-08
 
@@ -83,6 +90,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Comando `/modelo`.
 - Licencia MIT.
 
+[0.7.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.3.0...v0.4.0

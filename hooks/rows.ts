@@ -8,7 +8,7 @@ import { activity, isDone, pace } from './history'
 import { limitSegs, sortLimits } from './limits'
 import type { Limit } from './limits'
 import { pickOfId } from './models'
-import { count, money } from './stats'
+import { count } from './stats'
 import { clip, EMPTY_LOG } from './log'
 import { LEVELS } from './theory'
 
@@ -64,9 +64,8 @@ export type View = {
   watch?: string | null
   log?: AgentLog
   thinking?: boolean
-  // From `$.session.usage()`: when the session started, how full its context is, Claude Code's own cost,
-  // and the account's rate-limit windows.
-  usage?: { startedAt?: number; percent?: number; usd?: number; limits?: readonly Limit[] }
+  // From `$.session.usage()`: when the session started, how full its context is, and the account's rate-limit windows.
+  usage?: { startedAt?: number; percent?: number; limits?: readonly Limit[] }
 }
 
 const WAITING = 'Todavía no hay datos: llegan tras la próxima respuesta.'
@@ -85,7 +84,6 @@ const LIST_ROWS = 20
 const DONE_SHOWN = 10
 const SLOW_AGENT_MS = 300_000
 const SLOW_TOOL_MS = 10_000
-const DEAR = 1
 
 const dim = (text: string): Seg => ({ text, dim: true })
 const plain = (text: string): Seg => ({ text })
@@ -94,22 +92,24 @@ const line = (...segs: Seg[]): Row => ({ segs })
 const clamp = (n: number, low: number, high: number): number => Math.min(high, Math.max(low, n))
 const colorOf = (model: string): string | undefined => pickOfId(model)?.family.color
 const promptOf = (t: { input: number; cacheRead: number; cacheWrite: number }): number => t.input + t.cacheRead + t.cacheWrite
+const tokensOf = (t: { input: number; cacheRead: number; cacheWrite: number; output: number }): number => promptOf(t) + t.output
+// Every token the session's agents used, whole prompts and output.
+const agentTokens = (h: History): number => h.agents.reduce((all, agent) => all + agent.input + agent.output, 0)
 const seen = (h: History): number => h.turns.length + h.dropped
 
-/** The header every tab shares: session time, cost, turns and how full the context is. */
+/** The header every tab shares: session time, tokens, turns and how full the context is. */
 export const headRow = (view: View): Row => {
   const { history: h, now } = view
   const started = view.usage?.startedAt ?? h.turns[0]?.startedAt
   const segs: Seg[] = [dim('sesión ')]
 
   segs.push(started === undefined ? plain('–') : { text: duration(Math.max(0, now - started)), fx: 'clock', since: started })
-  segs.push(dim(' · '), plain(`~${money(h.total.cost)}`), dim(` · ${seen(h)} turnos`))
+  segs.push(dim(' · '), plain(`${count(tokensOf(h.total))} tok`), dim(` · ${seen(h)} turnos`))
 
   if (view.usage?.percent !== undefined) {
     const percent = Math.round(view.usage.percent)
     segs.push(dim(' · contexto '), { text: '', fx: 'meter', key: 'context', value: percent, width: 8 }, plain(` ${percent}%`))
   }
-  if (view.usage?.usd !== undefined) segs.push(dim(` · /cost ${money(view.usage.usd)}`))
 
   return { segs }
 }
@@ -132,33 +132,34 @@ export const limitsRow = (view: View): { segs: Seg[] } | null => {
   return { segs: width(full) <= view.columns ? full : join(false) }
 }
 
-const costRows = (view: View): Row[] => {
+const tokenRows = (view: View): Row[] => {
   const { columns, history: h } = view
   const shown = h.turns.slice(-Math.max(1, columns))
-  const costs = shown.map(turn => turn.cost)
-  const top = costs.reduce((most, cost) => Math.max(most, cost), 0)
+  const totals = shown.map(tokensOf)
+  const top = totals.reduce((most, n) => Math.max(most, n), 0)
   const withTok = columns >= 48
   const withCache = columns >= 40
   const barWidth = clamp(columns - 4 - 1 - 8 - 1 - (withTok ? 13 : 0) - (withCache ? 6 : 0), 4, 40)
   const recent = h.turns.slice(-TABLE_ROWS).reverse()
-  const worst = recent.reduce((most, turn) => Math.max(most, turn.cost), 0)
+  const worst = recent.reduce((most, turn) => Math.max(most, tokensOf(turn)), 0)
   const all = h.total
+  const agents = agentTokens(h)
 
   return [
-    line(dim(`COSTO POR TURNO · últimos ${shown.length} de ${seen(h)} · máx ${money(top)}`)),
-    { key: 'cost', chart: costs, height: 3, max: top },
+    line(dim(`TOKENS POR TURNO · últimos ${shown.length} de ${seen(h)} · máx ${count(top)}`)),
+    { key: 'tokens', chart: totals, height: 3, max: top },
     line(
-      dim(`${cell('#', 4, 'right')} ${cell('costo', 8)}`),
+      dim(`${cell('#', 4, 'right')} ${cell('tokens', 8)}`),
       dim(cell('▒ entrada █ salida', barWidth)),
-      ...(withTok ? [dim(` ${cell('tok', 12)}`)] : []),
+      ...(withTok ? [dim(` ${cell('ent→sal', 12)}`)] : []),
       ...(withCache ? [dim(` ${cell('cache', 5)}`)] : []),
     ),
     ...recent.map((turn, index) => {
-      const [light = 0, full = 0] = stack([turn.cost - turn.costOut, turn.costOut], worst, barWidth)
+      const [light = 0, full = 0] = stack([promptOf(turn), turn.output], worst, barWidth)
       const color = colorOf(turn.model)
 
       return line(
-        plain(`${cell(String(seen(h) - index), 4, 'right')} ${cell(money(turn.cost), 8)}`),
+        plain(`${cell(String(seen(h) - index), 4, 'right')} ${cell(count(tokensOf(turn)), 8)}`),
         { text: '▒'.repeat(light), color, dim: true },
         { text: '█'.repeat(full), color },
         plain(' '.repeat(Math.max(0, barWidth - light - full))),
@@ -168,8 +169,8 @@ const costRows = (view: View): Row[] => {
     }),
     line(
       dim(
-        `total ~${money(all.cost)} · ${count(promptOf(all))}→${count(all.output)} tok · cache ${pct(all.cacheRead, promptOf(all))}` +
-          (all.agentCost > 0 ? ` · subagentes ${money(all.agentCost)}` : ''),
+        `total ${count(promptOf(all))}→${count(all.output)} tok · cache ${pct(all.cacheRead, promptOf(all))}` +
+          (agents > 0 ? ` · subagentes ${count(agents)} tok` : ''),
       ),
     ),
   ]
@@ -177,8 +178,11 @@ const costRows = (view: View): Row[] => {
 
 const modelRows = (view: View): Row[] => {
   const { columns, history: h } = view
-  const entries = Object.entries(h.models).sort((a, b) => b[1].cost - a[1].cost)
-  const top = entries.reduce((most, [, stat]) => Math.max(most, stat.cost), 0)
+  const used = (stat: { input: number; output: number }): number => stat.input + stat.output
+  const entries = Object.entries(h.models).sort((a, b) => used(b[1]) - used(a[1]))
+  const top = entries.reduce((most, [, stat]) => Math.max(most, used(stat)), 0)
+  const whole = entries.reduce((all, [, stat]) => all + used(stat), 0)
+  const agents = agentTokens(h)
   const withTok = columns >= 56
   const withReq = columns >= 46
   const barWidth = clamp(columns - 2 - 13 - 1 - 7 - 5 - (withTok ? 13 : 0) - (withReq ? 8 : 0), 3, 30)
@@ -193,16 +197,14 @@ const modelRows = (view: View): Row[] => {
         { text: `${known?.family.glyph ?? '·'} `, color: known?.family.color },
         { text: cell(name, 12), dim: known === undefined },
         plain(' '),
-        { text: hbar(stat.cost, top, barWidth), color: known?.family.color, fx: 'grow', key: `model:${id}`, width: barWidth },
-        plain(` ${cell(money(stat.cost), 7, 'right')}`),
-        dim(` ${cell(pct(stat.cost, h.total.cost), 4, 'right')}`),
+        { text: hbar(used(stat), top, barWidth), color: known?.family.color, fx: 'grow', key: `model:${id}`, width: barWidth },
+        plain(` ${cell(count(used(stat)), 7, 'right')}`),
+        dim(` ${cell(pct(used(stat), whole), 4, 'right')}`),
         ...(withTok ? [dim(` ${cell(`${count(stat.input)}→${count(stat.output)}`, 12)}`)] : []),
         ...(withReq ? [dim(` ${cell(`${stat.steps} req`, 7)}`)] : []),
       )
     }),
-    ...(h.total.agentCost > 0
-      ? [line(dim(`subagentes: ${money(h.total.agentCost)} (${pct(h.total.agentCost, h.total.cost)} del total)`))]
-      : []),
+    ...(agents > 0 ? [line(dim(`subagentes: ${count(agents)} tok (${pct(agents, whole)} del total)`))] : []),
   ]
 }
 
@@ -392,7 +394,7 @@ const agentRows = (view: View): Row[] => {
   if (watched !== undefined) return detailRows(view, watched)
 
   const tally = (name: StateName): number => h.agents.filter(agent => stateOf(agent) === name).length
-  const spent = h.agents.reduce((all, agent) => all + agent.cost, 0)
+  const spent = agentTokens(h)
   const head: Seg[] = [dim('AGENTES ')]
 
   for (const name of ORDER) {
@@ -408,7 +410,7 @@ const agentRows = (view: View): Row[] => {
       dim(` ${n} ${state.label} `),
     )
   }
-  head.push(plain(` ${money(spent)}`))
+  head.push(plain(` ${count(spent)} tok`))
 
   const rows: Row[] = [{ segs: head }, line({ text: '─'.repeat(Math.max(1, columns)), color: 'subtle' })]
   const ids = new Set(h.agents.map(agent => agent.id))
@@ -436,7 +438,7 @@ const agentRows = (view: View): Row[] => {
         over
           ? dim(cell(duration(Math.max(0, (agent.endedAt ?? now) - agent.startedAt)), 7, 'right'))
           : { text: '', fx: 'clock', since: agent.startedAt, width: 7, align: 'right', warnAfter: SLOW_AGENT_MS },
-        { text: ` ${cell(money(agent.cost), 7, 'right')}`, ...(agent.cost > DEAR ? { color: 'error' } : {}) },
+        dim(` ${cell(count(agent.input + agent.output), 7, 'right')}`),
         ...(name === 'failed' ? [{ text: agent.status === 'killed' ? ' cancelado' : ' error', color: 'error' } as Seg] : []),
       ],
     })
@@ -469,8 +471,9 @@ const agentRows = (view: View): Row[] => {
       }
     }
 
-    if (columns >= 56 && agent.costs.length > 1) {
-      detail.push(plain('  '), { text: sparkline(agent.costs), color: known?.family.color, dim: over })
+    const toks = agent.toks ?? []
+    if (columns >= 56 && toks.length > 1) {
+      detail.push(plain('  '), { text: sparkline(toks), color: known?.family.color, dim: over })
     }
 
     rows.push({ key: `b:${agent.id}`, isDone: over, segs: detail })
@@ -510,7 +513,7 @@ const theoryRows = (view: View): Row[] => {
 }
 
 const TABS: Readonly<Record<Tab, (view: View) => Row[]>> = {
-  costo: costRows,
+  costo: tokenRows,
   modelos: modelRows,
   tools: toolRows,
   ritmo: paceRows,

@@ -12,7 +12,7 @@ import { liveAgents, plainData } from './rows'
 import type { LiveProps } from './rows'
 import type { AgentLog, Best, Level } from '../types'
 import { paint } from './paint'
-import { priceLabel, statsSegs, tally } from './stats'
+import { statsSegs, tally } from './stats'
 import { addNote, isLevel, LEVELS, noteOf, SECTION_ID, sectionFor, SPEC, TOOL } from './theory'
 import { activityParts } from './activity'
 import { argsOf, EMPTY_LOG, endCall, setAnswer, settleText, startCall, streamText, withLog } from './log'
@@ -29,7 +29,7 @@ const HEAD = '▌ MODELO '
 const NOTE_COLUMNS = 106
 const NAME_COLUMNS = 70
 
-const WAITING = 'costo, tokens y cache: tras la próxima respuesta'
+const WAITING = 'tokens y cache: tras la próxima respuesta'
 
 const choice = atom({ plugin: 'model-picker', key: 'choice' } as const, 'auto')
 // The family whose version dropdown is open; '' while none is.
@@ -99,7 +99,7 @@ const sessionUsage = async ($: EngineInterface) => {
   try {
     const usage = await $.session.usage()
 
-    return { startedAt: usage.startedAt, percent: usage.context.percent, usd: usage.cost?.usd, limits: usage.rateLimits }
+    return { startedAt: usage.startedAt, percent: usage.context.percent, limits: usage.rateLimits }
   } catch {
     return undefined
   }
@@ -520,14 +520,14 @@ export const register: Register = (on, options) => {
     // The player's color is the active model's.
     const color = (pickOfId(await read($, choice)) ?? (await pickOfSession($)))?.family.color ?? 'claude'
     const data: GameData = {
-      cost: record.total.cost,
+      tokens: record.total.input + record.total.cacheRead + record.total.cacheWrite + record.total.output,
       tools: record.tools.map(tool => ({ name: tool.name, count: tool.count, errors: tool.errors })),
       agents: record.agents.map(agent => ({
         id: agent.id,
         type: agent.type,
         model: agent.model,
         steps: agent.steps,
-        cost: agent.cost,
+        tokens: agent.input + agent.output,
         state: agent.status === 'failed' || agent.status === 'killed' ? 'failed' : isDone(agent) ? 'done' : 'live',
       })),
     }
@@ -617,6 +617,8 @@ export const register: Register = (on, options) => {
     const opened = FAMILIES.find(f => f.choice === shown)
     const seen = await read($, stats)
     const measured = await sessionUsage($)
+    // The 5-hour window is named by the time left to its reset; without a clock, by its name.
+    const now = await $.clock.now().catch(() => undefined)
     // While Claude works the row leads with what it is doing; before the first response, with nothing to report, it says so.
     const lead = activityParts(await read($, history), await read($, doing))
     const facts: LiveProps = {
@@ -627,7 +629,7 @@ export const register: Register = (on, options) => {
           segs:
             seen === null && lead.length === 0
               ? [{ text: WAITING, dim: true }]
-              : statsSegs(seen, override !== undefined, columns - 2, measured?.percent, lead, measured?.limits),
+              : statsSegs(seen, override !== undefined, columns - 2, measured?.percent, lead, measured?.limits, now),
         },
       ],
     }
@@ -705,7 +707,6 @@ export const register: Register = (on, options) => {
                   {` ${isCurrent ? '●' : '○'} ${opened.label} ${version.version} `}
                 </Text>
               </Button>
-              <Text dimColor>{priceLabel(version.price)} por MTok</Text>
             </Box>
           )
         })}

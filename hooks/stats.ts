@@ -82,8 +82,6 @@ export const tally = (
   }
 }
 
-export const money = (dollars: number): string => `$${dollars.toFixed(dollars < 0.1 ? 3 : 2)}`
-
 export const count = (tokens: number): string => {
   if (tokens >= MILLION) return `${(tokens / MILLION).toFixed(1)}M`
   if (tokens >= 1000) return `${(tokens / 1000).toFixed(tokens < 10_000 ? 1 : 0)}k`
@@ -91,14 +89,10 @@ export const count = (tokens: number): string => {
   return String(tokens)
 }
 
-/** A version's list price as its dropdown row shows it (`$4/$20`). */
-export const priceLabel = ([input, output]: readonly [number, number]): string => {
-  const one = (n: number) => `$${Number.isInteger(n) ? n : n.toFixed(2)}`
-
-  return `${one(input)}/${one(output)}`
-}
-
 const METER_CELLS = 6
+
+// The band names the 5-hour window by the time left to its reset, and the others by name alone.
+const bandLimit = (limit: Limit, now?: number): Seg[] => limitSegs(limit, METER_CELLS, limit.kind === 'five_hour' ? now : undefined)
 const SEPARATOR = ' · '
 
 const widthOf = (segs: readonly Seg[]): number =>
@@ -117,7 +111,7 @@ const meterText = (seg: Seg): string => {
 
 /**
  * The stats row as runs of text, the most useful part first, as many parts as
- * fit `columns` with ` · ` between them: the model that answered, the costs,
+ * fit `columns` with ` · ` between them: the model that answered,
  * the account's rate-limit windows (`limits`: 5 hours, the week, Fable's), the
  * effort, the tokens, then a meter of the cache's share and one of how full the
  * context is (`context`, a percent, when known). Empty with nothing to show.
@@ -130,15 +124,14 @@ export const statsSegs = (
   context?: number,
   lead: readonly Seg[][] = [],
   limits: readonly Limit[] = [],
+  now?: number,
 ): Seg[] => {
   const word = (text: string): Seg => ({ text, dim: true })
   const parts: Seg[][] = lead.map(part => [...part])
 
   if (stats !== null) {
     if (stats.answeredBy !== '' && lead.length === 0) parts.push([word(`respondió ${nameOfId(stats.answeredBy)}`)])
-    if (stats.sessionCost > 0) parts.push([word(`sesión ~${money(stats.sessionCost)}`)])
-    if (stats.turnCost > 0) parts.push([word(`turno ~${money(stats.turnCost)}`)])
-    for (const limit of sortLimits(limits)) parts.push(limitSegs(limit, METER_CELLS))
+    for (const limit of sortLimits(limits)) parts.push(bandLimit(limit, now))
     if (stats.effort !== '') parts.push([word(`effort ${stats.effort}`)])
     if (stats.answeredBy !== '') parts.push([word(`${count(stats.input)}→${count(stats.output)} tok`)])
     if (stats.input > 0) {
@@ -150,7 +143,7 @@ export const statsSegs = (
       ])
     }
   }
-  if (stats === null) for (const limit of sortLimits(limits)) parts.push(limitSegs(limit, METER_CELLS))
+  if (stats === null) for (const limit of sortLimits(limits)) parts.push(bandLimit(limit, now))
   if (context !== undefined) {
     const full = Math.round(context)
     parts.push([word('contexto '), { text: '', fx: 'meter', key: 'context', value: full, width: METER_CELLS }, word(` ${full}%`)])
@@ -170,7 +163,8 @@ export const statsLine = (
   columns: number,
   context?: number,
   limits: readonly Limit[] = [],
+  now?: number,
 ): string =>
-  statsSegs(stats, isManual, columns, context, [], limits)
+  statsSegs(stats, isManual, columns, context, [], limits, now)
     .map(seg => (seg.fx === 'meter' ? meterText(seg) : seg.text))
     .join('')

@@ -93,7 +93,7 @@ test('with a lead, the stats row drops who answered and keeps the rest that fits
     .map(seg => seg.text)
     .join('')
 
-  expect(row.startsWith('pensando · sesión ~$0.42')).toBe(true)
+  expect(row.startsWith('pensando · effort medium')).toBe(true)
   expect(row).not.toContain('respondió')
 
   const narrow = statsSegs(stats as Parameters<typeof statsSegs>[0], false, 12, undefined, lead)

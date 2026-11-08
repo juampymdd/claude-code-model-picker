@@ -128,11 +128,10 @@ test('the stats row reports what the API said of the responses', async ($, on) =
     await ui.press({ key: 'haiku' })
     await step($, { effort: 'medium', turnId: surface })
 
-    // Haiku 5.5: 0.1M in at $0.10 + 0.02M out at $0.50 + 0.9M cached at $0.01.
     // The meter fills over a few frames.
     await ui.advance(2000)
     const row = await ui.find({ type: 'Text', text: /respondió Haiku 5\.5/, in: 'datos' })
-    expect(row?.text).toMatch(/turno ~\$0\.029/)
+    expect(row?.text).not.toMatch(/\$/)
     expect(row?.text).toMatch(/effort medium/)
     expect(row?.text).toMatch(/1\.0M→20k tok/)
     expect(row?.text).toMatch(/cache ▰▰▰▰▰▱ 90%/)
@@ -140,8 +139,9 @@ test('the stats row reports what the API said of the responses', async ($, on) =
 
     await ui.press({ key: 'haiku' })
     expect(await ui.find({ key: 'datos' })).toBeUndefined()
-    expect(await ui.find({ type: 'Text', text: /\$0\.10\/\$0\.50 por MTok/ })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /\$1\/\$5 por MTok/ })).toBeDefined()
+    // The versions are listed without their price.
+    expect(await ui.find({ type: 'Text', text: /Haiku 4\.5/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /por MTok/ })).toBeUndefined()
     await ui.press({ key: 'haiku' })
 
     await ui.unmount()

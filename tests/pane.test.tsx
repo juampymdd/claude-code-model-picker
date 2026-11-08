@@ -97,18 +97,17 @@ test('an empty session says the data is coming, and still offers its tabs', asyn
   }
 })
 
-test("the cost tab lists a turn's cost, tokens and cache share", async ($, on) => {
+test("the tokens tab lists a turn's tokens and cache share, and no money", async ($, on) => {
   world(on)
 
   for (const surface of SURFACES) {
     const ui = await $.ui.mount({ ...pane(70), surface })
     await turn($, `cost-${surface}`)
 
-    // Haiku 5.5: 0.1M in at $0.10 + 0.02M out at $0.50 + 0.9M cached at $0.01.
-    expect(await ui.find({ type: 'Text', text: /\$0\.029/, ...IN })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /\$/, ...IN })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /1\.0M→20k/, ...IN })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /90%/, ...IN })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /COSTO POR TURNO/, ...IN })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /TOKENS POR TURNO/, ...IN })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /contexto/, ...IN })).toBeDefined()
 
     await ui.unmount()
@@ -129,7 +128,7 @@ test('a tab press switches the chart', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /USO POR MODELO/, ...IN })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Haiku 5\.5/, ...IN })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /Opus 5\.5/, ...IN })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /COSTO POR TURNO/, ...IN })).toBeUndefined()
+  expect(await ui.find({ type: 'Text', text: /TOKENS POR TURNO/, ...IN })).toBeUndefined()
 
   await ui.press({ key: 'tools' })
   expect(await ui.find({ type: 'Text', text: /TOOLS · 3 llamadas · 0 errores/, ...IN })).toBeDefined()
@@ -164,7 +163,7 @@ test('a narrow pane still draws its header and tabs', async ($, on) => {
 
   expect(await ui.find({ type: 'Text', text: /sesión/, ...IN })).toBeDefined()
   expect(await ui.find({ key: 'agentes' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: /COSTO POR TURNO/, ...IN })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /TOKENS POR TURNO/, ...IN })).toBeDefined()
 
   await ui.unmount()
 })
@@ -173,7 +172,7 @@ test("a /clear starts the session's numbers over", async ($, on) => {
   world(on)
   const ui = await $.ui.mount({ ...pane(60), surface: 'terminal' })
   await turn($, 'x')
-  expect(await ui.find({ type: 'Text', text: /COSTO POR TURNO/, ...IN })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /TOKENS POR TURNO/, ...IN })).toBeDefined()
 
   await $.session.end({ reason: 'clear', sessionId: 's', resume: { id: 's' } })
   expect(await ui.find({ type: 'Text', text: /Todavía no hay datos/, ...IN })).toBeDefined()
@@ -199,7 +198,7 @@ test('the agents tab lists each agent with its model, cost, tools and what it is
     expect(await ui.find({ type: 'Text', text: /Haiku 5\.5/, ...IN })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /2 req/, ...IN })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Grep ×1/, ...IN })).toBeDefined()
-    expect(await ui.find({ type: 'Text', text: /\$0\.058/, ...IN })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /\$/, ...IN })).toBeUndefined()
     expect(await ui.find({ type: 'Text', text: /pensando/, ...IN })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /corriendo/, ...IN })).toBeDefined()
 
@@ -270,13 +269,13 @@ test('the tabs fit the pane: every name when there is room, only the shown one w
   world(on)
 
   const wide = await $.ui.mount({ ...pane(72), surface: 'terminal' })
-  for (const name of [/^Costo $/, /^Modelos $/, /^Tools $/, /^Ritmo $/, /^Agentes $/, /^Teoría $/]) {
+  for (const name of [/^Tokens $/, /^Modelos $/, /^Tools $/, /^Ritmo $/, /^Agentes $/, /^Teoría $/]) {
     expect(await wide.find({ type: 'Text', text: name })).toBeDefined()
   }
   await wide.unmount()
 
   const narrow = await $.ui.mount({ ...pane(40), surface: 'terminal' })
-  expect(await narrow.find({ type: 'Text', text: /^Costo $/ })).toBeDefined()
+  expect(await narrow.find({ type: 'Text', text: /^Tokens $/ })).toBeDefined()
   expect(await narrow.find({ type: 'Text', text: /^Modelos $/ })).toBeUndefined()
   expect(await narrow.find({ key: 'modelos' })).toBeDefined()
   await narrow.unmount()
