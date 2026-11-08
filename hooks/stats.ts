@@ -100,7 +100,11 @@ const METER_CELLS = 6
 const SEPARATOR = ' · '
 
 const widthOf = (segs: readonly Seg[]): number =>
-  segs.reduce((all, seg) => all + (seg.fx === 'meter' ? (seg.width ?? 0) : [...seg.text].length), 0)
+  segs.reduce(
+    (all, seg) =>
+      all + (seg.fx === 'meter' || seg.fx === 'clock' ? (seg.width ?? 0) : [...seg.text].length + (seg.fx === 'dots' ? 3 : 0)),
+    0,
+  )
 
 const meterText = (seg: Seg): string => {
   const width = seg.width ?? 0
@@ -114,13 +118,20 @@ const meterText = (seg: Seg): string => {
  * fit `columns` with ` · ` between them: the model that answered, the costs,
  * the effort, the tokens, then a meter of the cache's share and one of how
  * full the context is (`context`, a percent, when known). Empty with nothing to show.
+ * Given `lead` (what is at work now), the row starts with it instead of who answered.
  */
-export const statsSegs = (stats: Stats | null, isManual: boolean, columns: number, context?: number): Seg[] => {
+export const statsSegs = (
+  stats: Stats | null,
+  isManual: boolean,
+  columns: number,
+  context?: number,
+  lead: readonly Seg[][] = [],
+): Seg[] => {
   const word = (text: string): Seg => ({ text, dim: true })
-  const parts: Seg[][] = []
+  const parts: Seg[][] = lead.map(part => [...part])
 
   if (stats !== null) {
-    if (stats.answeredBy !== '') parts.push([word(`respondió ${nameOfId(stats.answeredBy)}`)])
+    if (stats.answeredBy !== '' && lead.length === 0) parts.push([word(`respondió ${nameOfId(stats.answeredBy)}`)])
     if (stats.sessionCost > 0) parts.push([word(`sesión ~${money(stats.sessionCost)}`)])
     if (stats.turnCost > 0) parts.push([word(`turno ~${money(stats.turnCost)}`)])
     if (stats.effort !== '') parts.push([word(`effort ${stats.effort}`)])

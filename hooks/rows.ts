@@ -2,11 +2,12 @@
 // them marked to move (a clock, a spinner, a bar that grows). `paint.tsx`
 // draws them, still or animated; nothing here touches the engine.
 
-import type { AgentStat, Best, Game, History, Level, Note, Tab, Turn } from '../types'
+import type { AgentLog, AgentStat, Best, Game, History, Level, Note, Tab, Turn } from '../types'
 import { cell, duration, hbar, pct, sparkline, stack, wrap } from './charts'
 import { activity, isDone, pace } from './history'
 import { pickOfId } from './models'
 import { count, money } from './stats'
+import { clip, EMPTY_LOG } from './log'
 import { LEVELS } from './theory'
 
 // One run of text in a row. `fx` says how it moves when the row is animated:
@@ -57,6 +58,10 @@ export type View = {
   theory?: boolean
   level?: Level
   notes?: readonly Note[]
+  // The agents tab: the agent watched (null for the list), its log, and whether its thinking shows.
+  watch?: string | null
+  log?: AgentLog
+  thinking?: boolean
   // From `$.session.usage()`: when the session started, how full its context is, Claude Code's own cost.
   usage?: { startedAt?: number; percent?: number; usd?: number }
 }
@@ -288,9 +293,82 @@ export const listedAgents = (h: History, showDone: boolean): AgentStat[] => {
   return [...live.sort((a, b) => ORDER.indexOf(stateOf(a)) - ORDER.indexOf(stateOf(b))), ...(showDone ? done : [])]
 }
 
+const NO_ACTIVITY = 'Sin actividad todavía: aparece en cuanto el agente escriba o use una herramienta.'
+// How many of a log's entries show, and how many lines of a text and of a thinking.
+const ENTRIES_SHOWN = 40
+const TEXT_LINES = 8
+const THINKING_LINES = 4
+
+// One agent, step by step: its two rows of the list, then what it wrote, thought
+// and called, oldest first, each at its time since the agent started; then its answer.
+const detailRows = (view: View, agent: AgentStat): Row[] => {
+  const log = view.log ?? EMPTY_LOG
+  const isOver = isDone(agent)
+  const room = Math.max(8, view.columns - 9)
+  const rows: Row[] = [
+    ...agentRows({ ...view, watch: null, showDone: true, history: { ...view.history, agents: [agent] } }).slice(2),
+    line({ text: '─'.repeat(Math.max(1, view.columns)), color: 'subtle' }),
+  ]
+
+  const shown = log.entries.filter(entry => entry.kind !== 'thinking' || view.thinking === true)
+  const cut = log.dropped + Math.max(0, shown.length - ENTRIES_SHOWN)
+  if (cut > 0) rows.push(line(dim(`… ${cut} anteriores`)))
+  if (shown.length === 0 && log.answer === undefined) rows.push(line(dim(NO_ACTIVITY)))
+
+  for (const [i, entry] of shown.slice(-ENTRIES_SHOWN).entries()) {
+    const when = dim(cell(`+${duration(Math.max(0, entry.at - agent.startedAt))}`, 7))
+    const key = `l:${agent.id}:${log.dropped + i}`
+
+    if (entry.kind === 'tool') {
+      const isRunning = entry.ms === undefined && !isOver
+      const args = cell(entry.args, Math.max(4, room - [...entry.name].length - 8))
+
+      rows.push({
+        key,
+        segs: [
+          when,
+          isRunning ? { text: '⠋', fx: 'spin', color: 'claude' } : entry.isError === true ? { text: '✕', color: 'error' } : { text: '▸', color: 'claude' },
+          { text: ` ${entry.name}`, bold: true },
+          plain(` ${args} `),
+          isRunning
+            ? { text: '', fx: 'clock', since: entry.at, width: 6, align: 'right', warnAfter: SLOW_TOOL_MS, color: 'claude' }
+            : dim(cell(entry.ms === undefined ? '' : duration(entry.ms), 6, 'right')),
+        ],
+      })
+      continue
+    }
+
+    const isThinking = entry.kind === 'thinking'
+    const lines = wrap(entry.text, room)
+    const max = isThinking ? THINKING_LINES : TEXT_LINES
+    const isLive = entry.isLive === true && !isOver
+    const kept = lines.length <= max ? lines : isLive ? lines.slice(-max) : lines.slice(0, max)
+    const glyph: Seg = isThinking ? { text: '∴', dim: true, color: 'claude' } : { text: '✎', color: 'claude' }
+    const text = (body: string): Seg => (isThinking ? { text: body, dim: true } : plain(body))
+
+    if (isLive && lines.length > max) rows.push(line(dim(`${' '.repeat(9)}…`)))
+    kept.forEach((body, n) => {
+      const segs: Seg[] = n === 0 ? [when, glyph, plain(' '), text(body)] : [plain(' '.repeat(9)), text(body)]
+      if (isLive && n === kept.length - 1) segs.push({ text: '▌', alt: ' ', fx: 'pulse', color: 'claude' })
+      rows.push(n === 0 ? { key, segs } : { segs })
+    })
+    if (!isLive && lines.length > max) rows.push(line(dim(`${' '.repeat(9)}…`)))
+  }
+
+  if (log.answer !== undefined) {
+    rows.push(line({ text: '─'.repeat(Math.max(1, view.columns)), color: 'subtle' }), line({ text: 'RESPUESTA', bold: true, color: 'success' }))
+    for (const body of wrap(log.answer, Math.max(8, view.columns - 2))) rows.push(line(plain(`  ${body}`)))
+  }
+
+  return rows
+}
+
 const agentRows = (view: View): Row[] => {
   const { columns, history: h, now } = view
   if (h.agents.length === 0) return [line(dim(NO_AGENTS))]
+
+  const watched = view.watch === null || view.watch === undefined ? undefined : h.agents.find(agent => agent.id === view.watch)
+  if (watched !== undefined) return detailRows(view, watched)
 
   const tally = (name: StateName): number => h.agents.filter(agent => stateOf(agent) === name).length
   const spent = h.agents.reduce((all, agent) => all + agent.cost, 0)
@@ -364,7 +442,7 @@ const agentRows = (view: View): Row[] => {
       } else {
         detail.push(
           { text: '⠋', fx: 'spin', color: 'claude' },
-          { text: ` ${agent.busy.tool} `, color: 'claude' },
+          { text: ` ${agent.busy.tool}${agent.busy.args === undefined ? '' : ` ${clip(agent.busy.args, 28)}`} `, color: 'claude' },
           { text: '', fx: 'clock', since: agent.busy.since, warnAfter: SLOW_TOOL_MS, color: 'claude' },
         )
       }

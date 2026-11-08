@@ -112,8 +112,11 @@ export const openAgent = (
   }))
 
 /** The history with agent `agentId` inside a call of `tool` since `now`. */
-export const startTool = (h: History, agentId: string, tool: string, now: number): History =>
-  mapAgent(withAgent(h, agentId, now), agentId, agent => ({ ...revived(agent), busy: { tool, since: now } }))
+export const startTool = (h: History, agentId: string, tool: string, now: number, args = ''): History =>
+  mapAgent(withAgent(h, agentId, now), agentId, agent => ({
+    ...revived(agent),
+    busy: args === '' ? { tool, since: now } : { tool, since: now, args },
+  }))
 
 /** The history with agent `done.id` finished at `now`; an id it never saw is ignored. */
 export const closeAgent = (

@@ -184,6 +184,13 @@ Si la terminal es angosta, la fila deja primero los datos de la izquierda y desc
 
 **Los costos son una estimación**: tokens informados por la API multiplicados por el precio de lista. Si usás una suscripción en vez de pagar por token, tomalos como referencia de consumo, no como tu factura. Ver [Limitaciones](#limitaciones).
 
+Mientras Claude trabaja, la fila arranca con **lo que está haciendo** en lugar de `respondió …`: la herramienta en curso con sus argumentos y cuánto lleva, o `pensando…` entre una y otra; y, si hay agentes trabajando, el más nuevo con la suya. Al terminar el turno vuelve a decir quién respondió.
+
+```
+▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5   ▦ stats ●1
+  ⠹ Bash npm test 12s · ● Explore ▸ Grep "FAMILIES" hooks · sesión ~$0.42 · turno ~$0.031
+```
+
 ## El panel de estadísticas
 
 Un panel con gráficos de toda la sesión. Se abre y se cierra con el botón **`▦ stats`** del final de la banda, o con `/modelo stats`. En terminales anchas (110 columnas o más, en pantalla completa) se acopla a la derecha; si no, se muestra arriba del prompt. Se cierra también con `Esc` cuando tiene el foco.
@@ -285,6 +292,29 @@ Cada agente ocupa dos filas. Arriba: estado, tipo, descripción, tiempo y costo.
 - Un agente lanzado por otro agente aparece debajo, con `└`.
 - Primero van los que corren (el más nuevo arriba) y después los últimos 10 terminados; **`ocultar terminados`** los saca de la lista.
 - Mientras hay agentes trabajando, al lado del botón `▦ stats` de la banda late un `●` con la cantidad, así te enterás sin abrir el panel.
+
+#### Qué hace cada agente
+
+Debajo de la lista, **`ver:`** tiene un botón por agente. Un clic abre su registro, paso a paso:
+
+```
+● Explore   buscar usos de FAMILIES                        1m12s  $0.058
+  ● Haiku 5.5  12 req  Grep ×3 Read ×2  ▸ ⠹ Read hooks/models.ts 2s
+────────────────────────────────────────────────────────────────────────
++0ms   ✎ Voy a buscar dónde se define FAMILIES y quién la usa.
++2s    ▸ Grep "FAMILIES" hooks                                   120ms
++3s    ▸ Read hooks/models.ts                                     40ms
++5s    ✎ Está en hooks/models.ts; la usan register.tsx y rows.ts.▌
+────────────────────────────────────────────────────────────────────────
+RESPUESTA
+  FAMILIES se define en hooks/models.ts:12 …
+```
+
+- `✎` es lo que el agente escribe, **en vivo** mientras lo escribe. `▸` es cada herramienta con lo que dice de qué se trata (el comando, el archivo, el patrón) y cuánto tardó; `✕` si falló, y un spinner mientras corre.
+- **`ver razonamiento`** suma su pensamiento (`∴`) cuando el modelo lo expone. Viene oculto porque es largo.
+- Al terminar, **RESPUESTA** muestra el informe completo que devolvió, aunque el agente ya cerró.
+- **`← todos los agentes`** vuelve a la lista.
+- Se guardan las últimas 150 entradas de cada agente (de los últimos 30 agentes) y se muestran las 40 más nuevas; un texto largo se ve recortado a 8 líneas. Un `/clear` borra los registros.
 
 ### 6 · Jugar
 
@@ -433,9 +463,9 @@ El mod registra estos hooks:
 | --- | --- |
 | `session.start` | Registra el comando `/modelo` y la herramienta de las notas de teoría |
 | `command.run` | Responde a `/modelo` |
-| `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, suma lo que la API informó de la respuesta |
+| `turn.step` | Antes de cada request del loop principal, pone el modelo elegido; después, suma lo que la API informó de la respuesta. De un subagente, copia a su registro lo que escribe y piensa mientras llega |
 | `turn.start`, `turn.complete` | Abren y cierran cada turno en el historial del panel de estadísticas |
-| `tool.call` | Cuenta y cronometra cada herramienta sin modificar la llamada; responde la de las notas de teoría |
+| `tool.call` | Cuenta y cronometra cada herramienta sin modificar la llamada, y anota cuál corre y con qué argumentos; responde la de las notas de teoría |
 | `tool.check` | Aprueba la herramienta de las notas, que no cambia nada, para que no pida permiso |
 | `prompt.compose` | Con las notas encendidas, agrega al system prompt el pedido de anotarlas |
 | `agent.spawn` | Anota cada agente que se lanza, con su tipo y descripción |
@@ -602,6 +632,8 @@ hooks/
   sessiongames.ts    Token Invaders y la Carrera de agentes
   pane.tsx           las pestañas y el armado del panel
   theory.ts          las notas de teoría: la herramienta, el pedido y la lista
+  log.ts             el registro de cada agente: texto, razonamiento y herramientas
+  activity.ts        lo que se está haciendo ahora, para la fila de datos
   update.ts          la actualización automática
 types/
   index.d.ts         contrato del estado que guarda el mod
@@ -616,6 +648,8 @@ tests/
   arcade.test.tsx    los juegos corriendo en el panel
   pane.test.tsx      el panel de estadísticas
   theory.test.tsx    las notas de teoría
+  log.test.ts        el registro de los agentes y la actividad
+  agentlog.test.tsx  el detalle de un agente y la fila en vivo
   update.test.ts     la actualización automática
 ```
 

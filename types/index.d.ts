@@ -95,8 +95,22 @@ export type AgentStat = {
   output: number
   tools: ToolStat[]
   // The tool call it is in now, and since when.
-  busy?: { tool: string; since: number }
+  // `args` says what the call is about (its command, file or pattern).
+  busy?: { tool: string; since: number; args?: string }
 }
+
+// One thing an agent did, as its log lists it: text it wrote, thinking it
+// showed, or a tool it called with its arguments. A live text is still being
+// written; a tool with no `ms` is still running.
+export type Entry =
+  | { kind: 'text' | 'thinking'; at: number; text: string; isLive?: boolean }
+  | { kind: 'tool'; at: number; id: string; name: string; args: string; ms?: number; isError?: boolean }
+
+// An agent's log: its latest entries, and how many older ones were cut.
+export type AgentLog = { entries: Entry[]; dropped: number; answer?: string }
+
+// The main loop's tool call in progress, as the band shows it.
+export type Doing = { tool: string; args: string; since: number }
 
 export type History = {
   // Newest last, the latest 200; `dropped` counts the ones cut.
@@ -144,6 +158,13 @@ declare module 'claude-code' {
       theory: boolean
       level: Level
       notes: Note[]
+      // The agents' logs by agent id, which one the agents tab is watching,
+      // and whether its thinking is shown.
+      logs: Record<string, AgentLog>
+      watch: string | null
+      thinking: boolean
+      // The main loop's tool call in progress; null between calls.
+      doing: Doing | null
     }
   }
 }

@@ -158,6 +158,13 @@ In a narrow terminal the row keeps its leftmost parts and drops the last ones. I
 
 **Costs are estimates**: the tokens the API reported times the list price. On a subscription, read them as a measure of usage, not as your bill. See [Limitations](#limitations).
 
+While Claude works, the row starts with **what it is doing** instead of `respondió …`: the tool in progress with its arguments and how long it has run, or `pensando…` (thinking) between tools; and, when agents are at work, the newest one with its own. Once the turn ends it says who answered again.
+
+```
+▌ MODELO   ✦ Fable 5.1  ▐ ◆ Opus 5.5 ▾ ▌  ▲ Sonnet 5.5   ● Haiku 5.5   ▦ stats ●1
+  ⠹ Bash npm test 12s · ● Explore ▸ Grep "FAMILIES" hooks · sesión ~$0.42 · turno ~$0.031
+```
+
 ## The stats pane
 
 A pane with charts of the whole session. Open and close it with the **`▦ stats`** button at the end of the band, or with `/modelo stats`. On wide terminals (110 columns or more, fullscreen) it docks on the right; otherwise it shows above the prompt. `Esc` closes it too when it has the focus.
@@ -259,6 +266,29 @@ Each agent takes two rows. On top: state, type, description, time and cost. Belo
 - An agent spawned by another agent is listed under it, with `└`.
 - Running ones come first (newest on top), then the latest 10 finished; **`ocultar terminados`** ("hide finished") drops them from the list.
 - While agents are at work, a `●` with their count beats beside the band's `▦ stats` button, so you know without opening the pane.
+
+#### What each agent is doing
+
+Under the list, **`ver:`** (see) has one button per agent. A click opens its log, step by step:
+
+```
+● Explore   buscar usos de FAMILIES                        1m12s  $0.058
+  ● Haiku 5.5  12 req  Grep ×3 Read ×2  ▸ ⠹ Read hooks/models.ts 2s
+────────────────────────────────────────────────────────────────────────
++0ms   ✎ Voy a buscar dónde se define FAMILIES y quién la usa.
++2s    ▸ Grep "FAMILIES" hooks                                   120ms
++3s    ▸ Read hooks/models.ts                                     40ms
++5s    ✎ Está en hooks/models.ts; la usan register.tsx y rows.ts.▌
+────────────────────────────────────────────────────────────────────────
+RESPUESTA
+  FAMILIES se define en hooks/models.ts:12 …
+```
+
+- `✎` is what the agent writes, **live** as it writes it. `▸` is each tool with what the call is about (the command, the file, the pattern) and how long it took; `✕` when it failed, and a spinner while it runs.
+- **`ver razonamiento`** (show reasoning) adds its thinking (`∴`) when the model exposes it. It starts hidden because it is long.
+- Once done, **RESPUESTA** (answer) shows the full report it returned, even after the agent is gone.
+- **`← todos los agentes`** goes back to the list.
+- Each agent keeps its latest 150 entries (for the latest 30 agents) and the newest 40 show; a long text is cut to 8 lines. A `/clear` removes the logs.
 
 ### 6 · Jugar (play)
 
@@ -409,7 +439,7 @@ The mod registers these hooks:
 | `command.run` | Answers `/modelo` |
 | `turn.step` | Before each request of the main loop, sets the picked model; after it, tallies what the API reported |
 | `turn.start`, `turn.complete` | Open and close each turn in the stats pane's history |
-| `tool.call` | Counts and times each tool without changing the call; answers the theory notes' tool |
+| `tool.call` | Counts and times each tool without changing the call, and notes which one runs and with what arguments; answers the theory notes' tool |
 | `tool.check` | Approves the notes' tool, which changes nothing, so it never asks for permission |
 | `prompt.compose` | With the notes on, adds to the system prompt the request to write them |
 | `agent.spawn` | Notes each agent that is spawned, with its type and description |
@@ -576,6 +606,8 @@ hooks/
   sessiongames.ts    Token Invaders and the agents' race
   pane.tsx           the tabs and the pane's assembly
   theory.ts          the theory notes: the tool, the request and the list
+  log.ts             each agent's log: text, reasoning and tools
+  activity.ts        what is being done now, for the stats row
   update.ts          the self-update
 types/
   index.d.ts         the contract of the state the mod keeps
@@ -590,6 +622,8 @@ tests/
   arcade.test.tsx    the games running in the pane
   pane.test.tsx      the stats pane
   theory.test.tsx    the theory notes
+  log.test.ts        the agents' logs and the activity
+  agentlog.test.tsx  an agent's detail and the live row
   update.test.ts     the self-update
 ```
 

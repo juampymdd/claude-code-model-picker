@@ -2,6 +2,14 @@
 
 Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones, [SemVer](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Agregado
+
+- Detalle de cada agente en la pestaña **Agentes**: un clic en `ver:` abre su registro con lo que escribe en vivo, cada herramienta con sus argumentos y su tiempo, su razonamiento (opcional, con `ver razonamiento`) y la respuesta final completa.
+- La fila de datos de la banda arranca, mientras Claude trabaja, con lo que está haciendo: la herramienta en curso con sus argumentos y su tiempo, o `pensando…`, y el agente más nuevo con la suya. Al terminar vuelve a `respondió …`.
+- En la lista de agentes, la herramienta en curso muestra sus argumentos.
+
 ## [0.5.0] - 2026-10-11
 
 ### Agregado

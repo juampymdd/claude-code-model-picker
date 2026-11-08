@@ -5,7 +5,8 @@ import type { Game, Level, Tab } from '../types'
 import { gameOf, GAMES } from './catalog'
 import { paint } from './paint'
 import type { Hyper } from './paint'
-import { headRow, rowsFor } from './rows'
+import { clip } from './log'
+import { headRow, listedAgents, rowsFor } from './rows'
 import type { LiveProps, View } from './rows'
 
 export const PANE = 'model-picker-stats'
@@ -34,6 +35,8 @@ export type Handlers = {
   onTheory: (isOn: boolean) => unknown
   onLevel: (level: Level) => unknown
   onForget: () => unknown
+  onWatch: (id: string | null) => unknown
+  onThinking: (show: boolean) => unknown
 }
 
 // Draws the game in play; the hooks module makes it, as it makes `Live`.
@@ -71,6 +74,9 @@ export const drawPane = (hyper: Hyper, parts: Parts, view: View, on: Handlers, l
   const isRoomy = tabs.reduce((all, { label }) => all + 3 + [...label].length + 1, 0) <= view.columns
   const props = liveProps(view)
   const hasDone = view.history.agents.some(agent => agent.endedAt !== undefined)
+  const isAgents = view.tab === 'agentes'
+  const watched = isAgents && typeof view.watch === 'string' ? view.history.agents.find(agent => agent.id === view.watch) : undefined
+  const listed = isAgents && watched === undefined ? listedAgents(view.history, view.showDone) : []
 
   return (
     <Box flexDirection="column">
@@ -86,6 +92,16 @@ export const drawPane = (hyper: Hyper, parts: Parts, view: View, on: Handlers, l
           )
         })}
       </Box>
+      {watched !== undefined && (
+        <Box>
+          <Button key="back" plain dimColor onPress={() => on.onWatch(null)}>
+            <Text>{' ← todos los agentes '}</Text>
+          </Button>
+          <Button key="thinking" plain dimColor onPress={() => on.onThinking(view.thinking !== true)}>
+            <Text>{view.thinking === true ? ' ocultar razonamiento ' : ' ver razonamiento '}</Text>
+          </Button>
+        </Box>
+      )}
       {live === undefined ? paint(hyper, parts, props, null) : live(props)}
       {isGames && (
         <Box>
@@ -126,7 +142,17 @@ export const drawPane = (hyper: Hyper, parts: Parts, view: View, on: Handlers, l
           )}
         </Box>
       )}
-      {view.tab === 'agentes' && hasDone && (
+      {listed.length > 0 && (
+        <Box flexWrap="wrap">
+          <Text dimColor>{' ver: '}</Text>
+          {listed.map(agent => (
+            <Button key={`w:${agent.id}`} plain dimColor onPress={() => on.onWatch(agent.id)}>
+              <Text>{` ▸ ${agent.type} · ${clip(agent.description, 18)} `}</Text>
+            </Button>
+          ))}
+        </Box>
+      )}
+      {isAgents && watched === undefined && hasDone && (
         <Box>
           <Button key="done" plain dimColor onPress={() => on.onShowDone(!view.showDone)}>
             <Text>{view.showDone ? ' ocultar terminados ' : ' mostrar terminados '}</Text>

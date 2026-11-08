@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, HookStream, Register, TurnStepChunk, TurnStepResult } from 'claude-code'
 
 import type { GameData } from './arcade'
 import { GAMES } from './catalog'
@@ -9,10 +9,12 @@ import type { Pick } from './models'
 import { drawPane, PANE } from './pane'
 import { liveAgents, plainData } from './rows'
 import type { LiveProps } from './rows'
-import type { Best, Level } from '../types'
+import type { AgentLog, Best, Level } from '../types'
 import { paint } from './paint'
 import { priceLabel, statsSegs, tally } from './stats'
 import { addNote, isLevel, LEVELS, noteOf, SECTION_ID, sectionFor, SPEC, TOOL } from './theory'
+import { activityParts } from './activity'
+import { argsOf, EMPTY_LOG, endCall, setAnswer, settleText, startCall, streamText, withLog } from './log'
 import { selfUpdate } from './update'
 import type { Host } from './update'
 
@@ -52,6 +54,13 @@ const menu = atom({ plugin: 'model-picker', key: 'menu' } as const, false)
 const theoryOn = atom({ plugin: 'model-picker', key: 'theory' } as const, true)
 const levelOf = atom({ plugin: 'model-picker', key: 'level' } as const, 'aprender')
 const notes = atom({ plugin: 'model-picker', key: 'notes' } as const, [])
+
+// The agents' logs, the one the agents tab watches, whether its thinking shows,
+// and the main loop's tool call in progress (the band's lead).
+const logs = atom({ plugin: 'model-picker', key: 'logs' } as const, {})
+const watch = atom({ plugin: 'model-picker', key: 'watch' } as const, null)
+const thinkingOn = atom({ plugin: 'model-picker', key: 'thinking' } as const, false)
+const doing = atom({ plugin: 'model-picker', key: 'doing' } as const, null)
 
 // The key the notes' level is kept under between sessions.
 const LEVEL_KEY = 'theory.level'
@@ -144,6 +153,68 @@ const setLevel = async ($: EngineInterface, level: Level): Promise<void> => {
     await $.store.set(LEVEL_KEY, level)
   } catch {
     // kept for the session all the same
+  }
+}
+
+// How much of a subagent's streamed text gathers before its log is written.
+const FLUSH_CELLS = 80
+
+// A subagent's response stream, read as it goes by: what it writes and thinks
+// goes to its log in pieces, and a tool call closes the text before it. The
+// chunks pass on unchanged, and nothing here can fail the request.
+async function* logged(
+  $: EngineInterface,
+  agentId: string,
+  stream: HookStream<TurnStepChunk, TurnStepResult>,
+): AsyncGenerator<TurnStepChunk, TurnStepResult> {
+  let pending = null as { kind: 'text' | 'thinking'; text: string } | null
+  let hasText = false
+  let isOver = false
+
+  const write = async (change: (log: AgentLog, at: number) => AgentLog): Promise<void> => {
+    try {
+      const at = await $.clock.now()
+      await update($, logs, was => withLog(was, agentId, log => change(log, at)))
+    } catch {
+      // the agent runs all the same; its log misses a piece
+    }
+  }
+  const flush = async (): Promise<void> => {
+    if (pending === null) return
+    const { kind, text } = pending
+    pending = null
+    await write((log, at) => streamText(log, kind, text, at))
+  }
+  const settle = (log: AgentLog, at: number): AgentLog => settleText(settleText(log, 'thinking', '', at), 'text', '', at)
+
+  try {
+    for (;;) {
+      const got = await stream.next()
+      if (got.done === true) {
+        isOver = true
+        await flush()
+        const answer = got.value.answer
+        // A response that streamed no text (or a surface that streams none) still shows what it wrote.
+        await write((log, at) => (hasText || answer === '' ? settle(log, at) : settleText(log, 'text', answer, at)))
+
+        return got.value
+      }
+
+      const chunk = got.value
+      if (chunk.kind === 'text' || chunk.kind === 'thinking') {
+        if (chunk.kind === 'text') hasText = true
+        if (pending !== null && pending.kind !== chunk.kind) await flush()
+        pending = { kind: chunk.kind, text: `${pending?.text ?? ''}${chunk.text}` }
+        if (pending.text.length >= FLUSH_CELLS) await flush()
+      } else if (chunk.kind === 'tool') {
+        await flush()
+        await write(settle)
+      }
+
+      yield chunk
+    }
+  } finally {
+    if (!isOver) await stream.return(undefined as unknown as TurnStepResult)
   }
 }
 
@@ -261,7 +332,9 @@ export const register: Register = (on, options) => {
   on('turn.step', async function* ($, e, next) {
     const isMain = e.agentId === undefined
     const override = isMain ? pickOfId(await read($, choice)) : undefined
-    const response = yield* next(override === undefined ? e : { ...e, model: override.version.model })
+    const stream = next(override === undefined ? e : { ...e, model: override.version.model })
+    // A subagent's stream is read as it goes by, for its log; the chunks pass unchanged.
+    const response = e.agentId === undefined ? yield* stream : yield* logged($, e.agentId, stream)
 
     const usage = response.usage
     if (usage !== null) await update($, stats, was => tally(was, e, usage, isMain))
@@ -317,6 +390,7 @@ export const register: Register = (on, options) => {
       } else {
         const now = await $.clock.now()
         await update($, history, was => closeAgent(was, { id: agentId, reason: e.reason }, now))
+        await update($, logs, was => withLog(was, agentId, log => setAnswer(log, e.answer)))
       }
     } catch {
       // the answer is already out
@@ -361,12 +435,18 @@ export const register: Register = (on, options) => {
     const agentId = e.agentId
     let isError = false
 
-    if (agentId !== undefined) {
-      try {
-        await update($, history, was => startTool(was, agentId, e.tool, started))
-      } catch {
-        // the call goes on unlisted
+    const args = argsOf(e.tool, e as unknown as Record<string, unknown>)
+    const callId = e.tool_use_id
+
+    try {
+      if (agentId === undefined) {
+        await update($, doing, () => ({ tool: e.tool, args, since: started }))
+      } else {
+        await update($, history, was => startTool(was, agentId, e.tool, started, args))
+        await update($, logs, was => withLog(was, agentId, log => startCall(log, { id: callId, name: e.tool, args }, started)))
       }
+    } catch {
+      // the call goes on unlisted
     }
 
     try {
@@ -382,6 +462,8 @@ export const register: Register = (on, options) => {
       try {
         const ms = (await $.clock.now()) - started
         await update($, history, was => addTool(was, { name: e.tool, ms, isError, agentId }))
+        if (agentId === undefined) await update($, doing, was => (was !== null && was.since === started && was.tool === e.tool ? null : was))
+        else await update($, logs, was => withLog(was, agentId, log => endCall(log, callId, ms, isError)))
       } catch {
         // the call is over; only its count is lost
       }
@@ -394,6 +476,9 @@ export const register: Register = (on, options) => {
       await update($, history, () => EMPTY)
       await update($, stats, () => null)
       await update($, notes, () => [])
+      await update($, logs, () => ({}))
+      await update($, watch, () => null)
+      await update($, doing, () => null)
     }
 
     return next(e)
@@ -406,6 +491,7 @@ export const register: Register = (on, options) => {
     const current = picked === 'juegos' && !hasGames ? 'costo' : picked
     const game = await read($, gameOf)
     const isShowingDone = await read($, showDone)
+    const watched = await read($, watch)
     const now = await $.clock.now()
     const usage = await sessionUsage($)
     const parts = $.ui.resolve(e)
@@ -442,6 +528,9 @@ export const register: Register = (on, options) => {
         theory: await read($, theoryOn),
         level: await read($, levelOf),
         notes: await read($, notes),
+        watch: watched,
+        log: watched === null ? EMPTY_LOG : ((await read($, logs))[watched] ?? EMPTY_LOG),
+        thinking: await read($, thinkingOn),
       },
       {
         onTab: next => update($, tabOf, () => next),
@@ -454,6 +543,8 @@ export const register: Register = (on, options) => {
         onTheory: isOn => update($, theoryOn, () => isOn),
         onLevel: level => setLevel($, level),
         onForget: () => update($, notes, () => []),
+        onWatch: id => update($, watch, () => id),
+        onThinking: show => update($, thinkingOn, () => show),
       },
       // Where the surface runs surface modules, the rows are drawn in motion and the games can run.
       'Client' in parts ? props => <parts.Client key="live" module="./live.tsx" props={plainData(props)} /> : undefined,
@@ -503,16 +594,17 @@ export const register: Register = (on, options) => {
     const hasNames = columns >= NAME_COLUMNS
     const opened = FAMILIES.find(f => f.choice === shown)
     const seen = await read($, stats)
-    // Before the session's first response there is nothing to report yet.
+    // While Claude works the row leads with what it is doing; before the first response, with nothing to report, it says so.
+    const lead = activityParts(await read($, history), await read($, doing))
     const facts: LiveProps = {
       tab: 'band',
-      now: 0,
+      now: await $.clock.now().catch(() => 0),
       rows: [
         {
           segs:
-            seen === null
+            seen === null && lead.length === 0
               ? [{ text: WAITING, dim: true }]
-              : statsSegs(seen, override !== undefined, columns - 2, (await sessionUsage($))?.percent),
+              : statsSegs(seen, override !== undefined, columns - 2, (await sessionUsage($))?.percent, lead),
         },
       ],
     }
