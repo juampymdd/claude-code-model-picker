@@ -10,6 +10,14 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - La fila de datos de la banda arranca, mientras Claude trabaja, con lo que está haciendo: la herramienta en curso con sus argumentos y su tiempo, o `pensando…`, y el agente más nuevo con la suya. Al terminar vuelve a `respondió …`.
 - En la lista de agentes, la herramienta en curso muestra sus argumentos.
 
+## [0.6.0] - 2026-11-08
+
+### Agregado
+
+- **Límites de uso de la cuenta** en la fila de datos de la banda y en una segunda línea del encabezado del panel: el de 5 horas, el semanal y el de Fable si Claude Code informa uno, cada uno con su medidor (verde, ámbar desde 70 %, rojo desde 90 %). En el panel, además, cuánto falta para que se renueve cada uno.
+- Un aviso (toast) cuando una ventana pasa el 90 %, una sola vez hasta que se renueva.
+- Las ventanas que el mod no conoce se muestran con el nombre que les da Claude Code.
+
 ## [0.5.0] - 2026-10-11
 
 ### Agregado
@@ -75,6 +83,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Comando `/modelo`.
 - Licencia MIT.
 
+[0.6.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/juampymdd/claude-code-model-picker/compare/v0.2.0...v0.3.0

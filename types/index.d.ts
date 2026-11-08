@@ -165,6 +165,8 @@ declare module 'claude-code' {
       thinking: boolean
       // The main loop's tool call in progress; null between calls.
       doing: Doing | null
+      // The rate-limit windows (by kind) already warned about at 90% or more.
+      limitAlerts: Record<string, true>
     }
   }
 }

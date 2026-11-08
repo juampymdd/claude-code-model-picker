@@ -1,4 +1,6 @@
 import type { Stats } from '../types'
+import { limitSegs, sortLimits } from './limits'
+import type { Limit } from './limits'
 import { nameOfId, pickOfId } from './models'
 import type { Seg } from './rows'
 
@@ -116,8 +118,9 @@ const meterText = (seg: Seg): string => {
 /**
  * The stats row as runs of text, the most useful part first, as many parts as
  * fit `columns` with ` · ` between them: the model that answered, the costs,
- * the effort, the tokens, then a meter of the cache's share and one of how
- * full the context is (`context`, a percent, when known). Empty with nothing to show.
+ * the account's rate-limit windows (`limits`: 5 hours, the week, Fable's), the
+ * effort, the tokens, then a meter of the cache's share and one of how full the
+ * context is (`context`, a percent, when known). Empty with nothing to show.
  * Given `lead` (what is at work now), the row starts with it instead of who answered.
  */
 export const statsSegs = (
@@ -126,6 +129,7 @@ export const statsSegs = (
   columns: number,
   context?: number,
   lead: readonly Seg[][] = [],
+  limits: readonly Limit[] = [],
 ): Seg[] => {
   const word = (text: string): Seg => ({ text, dim: true })
   const parts: Seg[][] = lead.map(part => [...part])
@@ -134,6 +138,7 @@ export const statsSegs = (
     if (stats.answeredBy !== '' && lead.length === 0) parts.push([word(`respondió ${nameOfId(stats.answeredBy)}`)])
     if (stats.sessionCost > 0) parts.push([word(`sesión ~${money(stats.sessionCost)}`)])
     if (stats.turnCost > 0) parts.push([word(`turno ~${money(stats.turnCost)}`)])
+    for (const limit of sortLimits(limits)) parts.push(limitSegs(limit, METER_CELLS))
     if (stats.effort !== '') parts.push([word(`effort ${stats.effort}`)])
     if (stats.answeredBy !== '') parts.push([word(`${count(stats.input)}→${count(stats.output)} tok`)])
     if (stats.input > 0) {
@@ -145,6 +150,7 @@ export const statsSegs = (
       ])
     }
   }
+  if (stats === null) for (const limit of sortLimits(limits)) parts.push(limitSegs(limit, METER_CELLS))
   if (context !== undefined) {
     const full = Math.round(context)
     parts.push([word('contexto '), { text: '', fx: 'meter', key: 'context', value: full, width: METER_CELLS }, word(` ${full}%`)])
@@ -158,7 +164,13 @@ export const statsSegs = (
 }
 
 /** The stats row as plain text, its meters drawn full. */
-export const statsLine = (stats: Stats | null, isManual: boolean, columns: number, context?: number): string =>
-  statsSegs(stats, isManual, columns, context)
+export const statsLine = (
+  stats: Stats | null,
+  isManual: boolean,
+  columns: number,
+  context?: number,
+  limits: readonly Limit[] = [],
+): string =>
+  statsSegs(stats, isManual, columns, context, [], limits)
     .map(seg => (seg.fx === 'meter' ? meterText(seg) : seg.text))
     .join('')

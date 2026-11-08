@@ -34,7 +34,7 @@ With the version dropdown open:
 - **Version dropdown with prices**: a click on the active chip lists every version of that family with its list price.
 - **Starts on your real model**: a new session highlights the model the session already runs.
 - **Instant switch**: the choice applies to the next request.
-- **Stats row**: the model that answered, estimated session and turn cost, effort, tokens and cache share.
+- **Stats row**: the model that answered, estimated session and turn cost, **your account's usage limits** (5-hour, weekly and Fable's when there is one), effort, tokens and cache share.
 - **Animated stats pane** with charts of the session's cost, models, tools and pace, and the **agents, live**: what each one is doing, on which model and what it costs.
 - **15 games** in the pane (Pong, Tetris, Snake, Minesweeper, 2048… and two made of your session's data), under the [`▶ Jugar`](#6--jugar-play) tab.
 - **[Teoría](#7--teoría-theory) tab**: while it works, Claude notes the concepts and design decisions it applies, explained from scratch or as the trade-off alone.
@@ -140,7 +140,7 @@ Families: `fable`, `opus`, `sonnet`, `haiku`.
 Under the chips. Before the session's first response it reads `costo, tokens y cache: tras la próxima respuesta` ("cost, tokens and cache: after the next response"); then:
 
 ```
-respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
+respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · 5h ▰▰▱▱▱▱ 42% · semana ▰▱▱▱▱▱ 18% · effort medium · 48k→1.2k tok · cache ▰▰▰▰▰▰ 94% · contexto ▰▰▱▱▱▱ 38% · manual
 ```
 
 | Label | Meaning |
@@ -148,11 +148,15 @@ respondió Opus 5.5 · sesión ~$0.42 · turno ~$0.031 · effort medium · 48k�
 | `respondió Opus 5.5` | "answered by": the model the API says answered the latest request. Use it to confirm a switch took effect |
 | `sesión ~$0.42` | Estimated cost of every request of the session, subagents included |
 | `turno ~$0.031` | Estimated cost of the current turn (your last message and every call it triggered) |
+| `5h ▰▰▱▱▱▱ 42%` | How much of your subscription's 5-hour limit you used. Green, amber from 70%, red from 90% |
+| `semana ▰▱▱▱▱▱ 18%` | "week": how much of the weekly limit you used. If Claude Code reports a window of Fable's own it shows as `fable`; any other window shows under the name Claude Code gives it |
 | `effort medium` | The reasoning effort the latest request asked for |
 | `48k→1.2k tok` | Tokens of the latest request: whole prompt (cache included) → response |
 | `cache ▰▰▰▰▰▰ 94%` | The share of that prompt served from cache, with its meter: green when high, amber under 70%, red under 30%. Drops to 0% right after a model switch |
 | `contexto ▰▰▱▱▱▱ 38%` | How full the context window is: green, amber from 70%, red from 90% |
 | `manual` | A model is picked by hand, other than the session's |
+
+The limits come from what Claude Code reports (what the status line sees too) and show only on a subscription, after the first response. Past 90% of a window a toast warns you, once until the window resets.
 
 In a narrow terminal the row keeps its leftmost parts and drops the last ones. It is hidden while the dropdown is open.
 
@@ -171,8 +175,11 @@ A pane with charts of the whole session. Open and close it with the **`▦ stats
 
 ```
 sesión 1h12m · ~$0.42 · 31 turnos · contexto ▰▰▰▱▱▱▱▱ 38%
+límites 5h ▰▰▰▱▱▱▱▱ 42% ↻ 2h 10m · semana ▰▱▱▱▱▱▱▱ 18% ↻ 3d 4h
  1: Costo   2: Modelos   3: Tools   4: Ritmo   5: Agentes   6: ▶ Jugar   7: Teoría
 ```
+
+The second line (`límites` = limits) shows your account's limits and how long until each resets (`↻`); it is absent off a subscription.
 
 Change tabs with a click or, with the pane focused (click on it or `ctrl+x tab`), with the `1` to `7` keys. The charts are made of block characters, with no libraries, so they look the same in the terminal and the desktop app. Labels are in Spanish, like the rest of the interface (`sesión` = session, `turnos` = turns, `contexto` = context window).
 
@@ -466,6 +473,7 @@ The switch is **per request**: the mod rewrites the `model` field of each call t
 - **Models and prices are written in the code.** A new model has to be added by hand (see below).
 - **Switching models mid-conversation makes that request cost more**: the conversation's cache is per model, so the new model reads the whole history again.
 - **In narrow terminals** the band compacts: under 106 columns it hides the note on the right, under 70 it leaves only the glyph of the unpicked models, and the stats row drops its last parts.
+- **Fable's limit depends on Claude Code.** It shows only if Claude Code reports a window of Fable's own; otherwise there is no way to work it out, as the mod sees the session's usage, not your account's.
 - **The interface is in Spanish.**
 
 ## Add or change models
